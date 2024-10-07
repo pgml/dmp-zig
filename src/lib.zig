@@ -7,9 +7,10 @@ const diff = @import("diff.zig");
 const match = @import("match.zig");
 const patch = @import("patch.zig");
 
-const allocator = if (builtin.cpu.arch.isWasm()) std.heap.wasm_allocator else std.heap.c_allocator;
+const isWasm = @import("builtin").target.os.tag == .freestanding and @import("builtin").target.cpu.arch.isWasm();
+const allocator = if (isWasm) std.heap.wasm_allocator else std.heap.c_allocator;
 
-export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.C) void {
+pub export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.C) void {
     const patch_slice = patches[0..@intCast(patches_len)];
     defer allocator.free(patch_slice);
     for (patch_slice) |p| {
@@ -17,7 +18,7 @@ export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.C) voi
     }
 }
 
-export fn freeDiffList(diffs: [*c]Diff, diffs_len: c_int) callconv(.C) void {
+pub export fn freeDiffList(diffs: [*c]Diff, diffs_len: c_int) callconv(.C) void {
     const diffs_slice = diffs[0..@intCast(diffs_len)];
     defer allocator.free(diffs_slice);
     for (diffs_slice) |d| {
@@ -25,16 +26,20 @@ export fn freeDiffList(diffs: [*c]Diff, diffs_len: c_int) callconv(.C) void {
     }
 }
 
-export fn freePatch(p: Patch) callconv(.C) void {
+pub export fn freePatch(p: Patch) callconv(.C) void {
     freeDiffList(p.diffs, p.diffs_len);
 }
 
-export fn freeDiff(d: Diff) callconv(.C) void {
+pub export fn freeDiff(d: Diff) callconv(.C) void {
     freeString(d.text);
 }
 
-export fn freeString(str: [*c]const u8) callconv(.C) void {
+pub export fn freeString(str: [*c]const u8) callconv(.C) void {
     allocator.free(std.mem.span(str));
+}
+pub export fn allocString(text_len: c_uint) [*c]u8 {
+    const text = allocator.alloc(u8, @intCast(text_len)) catch return null;
+    return text.ptr;
 }
 
 const MatchContainer = u32;
@@ -70,7 +75,7 @@ pub const Patch = extern struct {
 
 // diff ------------------
 
-export fn diffDiffMain(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, check_lines: bool, diffs: *[*c]Diff) callconv(.C) c_int {
+pub export fn diffDiffMain(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, check_lines: bool, diffs: *[*c]Diff) callconv(.C) c_int {
     if (text1 == null or text2 == null) return -1;
 
     const i_diffs = diff.mainStringStringBool(allocator, dmp.diff_timeout, std.mem.span(text1), std.mem.span(text2), check_lines) catch @panic("ERR");
@@ -80,19 +85,19 @@ export fn diffDiffMain(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]cons
     return @intCast(i_diffs.len);
 }
 
-export fn diffCommonPrefix(text1: [*c]const u8, text2: [*c]const u8) callconv(.C) c_int {
+pub export fn diffCommonPrefix(text1: [*c]const u8, text2: [*c]const u8) callconv(.C) c_int {
     if (text1 == null or text2 == null) return -1;
     const res = diff.commonPrefix(std.mem.span(text1), std.mem.span(text2));
     return @intCast(res);
 }
 
-export fn diffCommonSuffix(text1: [*c]const u8, text2: [*c]const u8) callconv(.C) c_int {
+pub export fn diffCommonSuffix(text1: [*c]const u8, text2: [*c]const u8) callconv(.C) c_int {
     if (text1 == null or text2 == null) return -1;
     const res = diff.commonSuffix(std.mem.span(text1), std.mem.span(text2));
     return @intCast(res);
 }
 
-export fn diffCleanupSemantic(diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
+pub export fn diffCleanupSemantic(diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
     var i_diffs = dmpDiffListFromExtern(diffs.*[0..@intCast(diffs_len)]) catch @panic("OOM");
     // defer allocator.free(i_diffs);
 
@@ -103,7 +108,7 @@ export fn diffCleanupSemantic(diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c
     return @intCast(i_diffs.len);
 }
 
-export fn diffCleanupSemanticLossless(diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
+pub export fn diffCleanupSemanticLossless(diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
     var i_diffs = dmpDiffListFromExtern(diffs.*[0..@intCast(diffs_len)]) catch @panic("OOM");
     // defer allocator.free(i_diffs);
 
@@ -114,7 +119,7 @@ export fn diffCleanupSemanticLossless(diffs: *[*c]Diff, diffs_len: c_int) callco
     return @intCast(i_diffs.len);
 }
 
-export fn diffCleanupEfficiency(dmp: DiffMatchPatch, diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
+pub export fn diffCleanupEfficiency(dmp: DiffMatchPatch, diffs: *[*c]Diff, diffs_len: c_int) callconv(.C) c_int {
     var i_diffs = dmpDiffListFromExtern(diffs.*[0..@intCast(diffs_len)]) catch @panic("OOM");
     // defer allocator.free(i_diffs);
 
@@ -125,7 +130,7 @@ export fn diffCleanupEfficiency(dmp: DiffMatchPatch, diffs: *[*c]Diff, diffs_len
     return @intCast(i_diffs.len);
 }
 
-export fn diffCleanupMerge(diffs: *[*c]const Diff, diffs_len: c_int) callconv(.C) c_int {
+pub export fn diffCleanupMerge(diffs: *[*c]const Diff, diffs_len: c_int) callconv(.C) c_int {
     var i_diffs = dmpDiffListFromExtern(diffs.*[0..@intCast(diffs_len)]) catch @panic("OOM");
     // defer allocator.free(i_diffs);
 
@@ -136,7 +141,7 @@ export fn diffCleanupMerge(diffs: *[*c]const Diff, diffs_len: c_int) callconv(.C
     return @intCast(i_diffs.len);
 }
 
-export fn diffXIndex(diffs: [*c]const Diff, diffs_len: c_int, loc: c_int) callconv(.C) c_int {
+pub export fn diffXIndex(diffs: [*c]const Diff, diffs_len: c_int, loc: c_int) callconv(.C) c_int {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -145,7 +150,7 @@ export fn diffXIndex(diffs: [*c]const Diff, diffs_len: c_int, loc: c_int) callco
     return @intCast(location);
 }
 
-export fn diffPrettyHtml(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn diffPrettyHtml(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -154,7 +159,7 @@ export fn diffPrettyHtml(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [
     return text.ptr;
 }
 
-export fn diffPrettyText(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn diffPrettyText(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -163,7 +168,7 @@ export fn diffPrettyText(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [
     return text.ptr;
 }
 
-export fn diffText1(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn diffText1(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -172,7 +177,7 @@ export fn diffText1(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]co
     return text1.ptr;
 }
 
-export fn diffText2(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn diffText2(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -181,7 +186,7 @@ export fn diffText2(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]co
     return text2.ptr;
 }
 
-export fn diffLevenshtein(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) c_int {
+pub export fn diffLevenshtein(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) c_int {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -190,7 +195,7 @@ export fn diffLevenshtein(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) 
     return @intCast(distance);
 }
 
-export fn diffToDelta(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn diffToDelta(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]const u8 {
     const i_diffs = dmpDiffListFromExtern(diffs[0..@intCast(diffs_len)]) catch @panic("OOM");
     defer allocator.free(i_diffs);
     defer for (i_diffs) |*d| d.deinit(allocator);
@@ -199,7 +204,7 @@ export fn diffToDelta(diffs: [*c]const Diff, diffs_len: c_int) callconv(.C) [*c]
     return delta.ptr;
 }
 
-export fn diffFromDelta(text: [*c]const u8, delta: [*c]const u8, out_diffs_len: *c_int) callconv(.C) [*c]Diff {
+pub export fn diffFromDelta(text: [*c]const u8, delta: [*c]const u8, out_diffs_len: *c_int) callconv(.C) [*c]Diff {
     out_diffs_len.* = -1;
     const diffs = diff.fromDelta(allocator, std.mem.span(text), std.mem.span(delta)) catch @panic("OOM");
 
@@ -210,7 +215,7 @@ export fn diffFromDelta(text: [*c]const u8, delta: [*c]const u8, out_diffs_len: 
 
 // match -----------------
 
-export fn matchMain(dmp: DiffMatchPatch, text: [*c]const u8, pattern: [*c]const u8, loc: c_int) callconv(.C) c_int {
+pub export fn matchMain(dmp: DiffMatchPatch, text: [*c]const u8, pattern: [*c]const u8, loc: c_int) callconv(.C) c_int {
     if (text == null or pattern == null) return -1;
     const res = match.main(MatchContainer, allocator, dmp.match_distance, dmp.match_threshold, std.mem.span(text), std.mem.span(pattern), @intCast(loc)) catch null orelse return -1;
     return @intCast(res);
@@ -232,7 +237,7 @@ export fn matchMain(dmp: DiffMatchPatch, text: [*c]const u8, pattern: [*c]const 
 ///a = text1, b = text2, c = diffs, d = diffs_len
 ///
 ///returns pointer and len in out_patches_len
-export fn patchMake(dmp: DiffMatchPatch, out_patches_len: *c_int, mode: c_int, ...) callconv(.C) [*c]Patch {
+pub export fn patchMake(dmp: DiffMatchPatch, out_patches_len: *c_int, mode: c_int, ...) callconv(.C) [*c]Patch {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
     out_patches_len.* = -1;
@@ -283,7 +288,7 @@ export fn patchMake(dmp: DiffMatchPatch, out_patches_len: *c_int, mode: c_int, .
     return e_patches.ptr;
 }
 
-export fn patchDeepCopy(patches: [*c]const Patch, patches_len: c_int) callconv(.C) [*c]Patch {
+pub export fn patchDeepCopy(patches: [*c]const Patch, patches_len: c_int) callconv(.C) [*c]Patch {
     var i_patches = dmpPatchListFromExtern(patches[0..@intCast(patches_len)]) catch @panic("OOM");
     defer i_patches.deinit();
 
@@ -293,7 +298,7 @@ export fn patchDeepCopy(patches: [*c]const Patch, patches_len: c_int) callconv(.
     return o_patches.ptr;
 }
 
-export fn patchApply(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, text: [*c]const u8, out_applied: *[*c]bool) callconv(.C) [*c]const u8 {
+pub export fn patchApply(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, text: [*c]const u8, out_applied: *[*c]bool) callconv(.C) [*c]const u8 {
     var i_patches = dmpPatchListFromExtern(patches[0..@intCast(patches_len)]) catch @panic("OOM");
     defer i_patches.deinit();
 
@@ -312,7 +317,7 @@ export fn patchApply(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len:
     return result.ptr;
 }
 
-export fn patchAddPadding(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) [*c]const u8 {
+pub export fn patchAddPadding(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) [*c]const u8 {
     out_patches_len.* = -1;
     out_patches.* = null;
 
@@ -326,7 +331,7 @@ export fn patchAddPadding(dmp: DiffMatchPatch, patches: [*c]const Patch, patches
     return padding.ptr;
 }
 
-export fn patchSplitMax(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) void {
+pub export fn patchSplitMax(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) void {
     out_patches_len.* = -1;
     out_patches.* = null;
 
@@ -340,7 +345,7 @@ export fn patchSplitMax(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_l
     return;
 }
 
-export fn patchToText(patches: [*c]const Patch, patches_len: c_int) callconv(.C) [*c]const u8 {
+pub export fn patchToText(patches: [*c]const Patch, patches_len: c_int) callconv(.C) [*c]const u8 {
     var i_patches = dmpPatchListFromExtern(patches[0..@intCast(patches_len)]) catch @panic("OOM");
     defer i_patches.deinit();
 
@@ -348,7 +353,7 @@ export fn patchToText(patches: [*c]const Patch, patches_len: c_int) callconv(.C)
     return text.ptr;
 }
 
-export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) void {
+pub export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.C) void {
     out_patches_len.* = -1;
     out_patches.* = null;
 
@@ -360,7 +365,7 @@ export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch, out_patches
     return;
 }
 
-export fn patchObjToString(p: Patch) callconv(.C) [*c]const u8 {
+pub export fn patchObjToString(p: Patch) callconv(.C) [*c]const u8 {
     var arraylist = std.ArrayList(u8).init(allocator);
     defer arraylist.deinit();
 
@@ -375,27 +380,27 @@ export fn patchObjToString(p: Patch) callconv(.C) [*c]const u8 {
 
 // utils ---------------
 
-fn dmpDiffListFromExtern(diffs: []const Diff) std.mem.Allocator.Error![]diff.Diff {
-    const diff_list = try allocator.alloc(diff.Diff, diffs.len);
+pub fn dmpDiffListFromExtern(alloc: std.mem.Allocator, diffs: []const Diff) std.mem.Allocator.Error![]diff.Diff {
+    const diff_list = try alloc.alloc(diff.Diff, diffs.len);
     for (diffs, diff_list) |d, *nd| {
         nd.* = diff.Diff{ .text = std.mem.span(@constCast(d.text)), .operation = @enumFromInt(@intFromEnum(d.operation)) };
     }
     return diff_list;
 }
 
-fn dmpPatchListFromExtern(patches: []const Patch) std.mem.Allocator.Error!patch.PatchList {
-    var i_patches = try allocator.alloc(patch.Patch, patches.len);
+pub fn dmpPatchListFromExtern(alloc: std.mem.Allocator, patches: []const Patch) std.mem.Allocator.Error!patch.PatchList {
+    var i_patches = try alloc.alloc(patch.Patch, patches.len);
     for (patches, 0..) |p, i| {
         i_patches[i] = try dmpPatchFromExtern(p);
     }
 
     return patch.PatchList{
-        .allocator = allocator,
+        .allocator = alloc,
         .items = i_patches,
     };
 }
-fn dmpPatchFromExtern(p: Patch) std.mem.Allocator.Error!patch.Patch {
-    const diffs = try allocator.alloc(diff.Diff, @intCast(p.diffs_len));
+pub fn dmpPatchFromExtern(alloc: std.mem.Allocator, p: Patch) std.mem.Allocator.Error!patch.Patch {
+    const diffs = try alloc.alloc(diff.Diff, @intCast(p.diffs_len));
     for (p.diffs[0..@intCast(p.diffs_len)], diffs) |d, *nd| {
         nd.* = .{
             .operation = @enumFromInt(@intFromEnum(d.operation)),
@@ -405,18 +410,18 @@ fn dmpPatchFromExtern(p: Patch) std.mem.Allocator.Error!patch.Patch {
     return patch.Patch.init(@intCast(p.start1), @intCast(p.start2), @intCast(p.length1), @intCast(p.length2), diffs);
 }
 
-fn dmpPatchlistToExtern(patchlist: patch.PatchList) std.mem.Allocator.Error![]Patch {
+pub fn dmpPatchlistToExtern(alloc: std.mem.allocator, patchlist: patch.PatchList) std.mem.Allocator.Error![]Patch {
     defer {
         for (patchlist.items) |p| {
-            for (p.diffs) |*d| d.deinit(allocator);
-            allocator.free(p.diffs);
+            for (p.diffs) |*d| d.deinit(alloc);
+            alloc.free(p.diffs);
         }
         patchlist.allocator.free(patchlist.items);
     }
 
-    const patches = try allocator.alloc(Patch, patchlist.items.len);
+    const patches = try alloc.alloc(Patch, patchlist.items.len);
     for (patchlist.items, 0..) |p, i| {
-        const diffs = try allocator.alloc(Diff, p.diffs.len);
+        const diffs = try alloc.alloc(Diff, p.diffs.len);
         for (p.diffs, diffs) |d, *pd| {
             pd.* = Diff{
                 .operation = @enumFromInt(@intFromEnum(d.operation)),
@@ -437,10 +442,10 @@ fn dmpPatchlistToExtern(patchlist: patch.PatchList) std.mem.Allocator.Error![]Pa
     return patches;
 }
 
-fn dmpDifflistToExtern(diffs: []diff.Diff) std.mem.Allocator.Error![]Diff {
-    defer allocator.free(diffs);
+pub fn dmpDifflistToExtern(alloc: std.mem.Allocator, diffs: []diff.Diff) std.mem.Allocator.Error![]Diff {
+    defer alloc.free(diffs);
 
-    var o_diffs = try allocator.alloc(Diff, diffs.len);
+    var o_diffs = try alloc.alloc(Diff, diffs.len);
     for (diffs, 0..) |d, j| {
         o_diffs[j] = Diff{
             .operation = @enumFromInt(@intFromEnum(d.operation)),
