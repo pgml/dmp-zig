@@ -15,24 +15,24 @@ fn testString(text: []const u8) []u8 {
     return line;
 }
 
-fn diffRebuildTexts(diffs: []Diff) !struct { []const u8, []const u8 } {
-    var text1 = std.ArrayList(u8).init(testing.allocator);
-    defer text1.deinit();
-    var text2 = std.ArrayList(u8).init(testing.allocator);
-    defer text2.deinit();
+fn diffRebuildTexts(allocator: std.mem.Allocator, diffs: []Diff) !struct { []const u8, []const u8 } {
+    var text1: std.ArrayList(u8) = .{};
+    defer text1.deinit(allocator);
+    var text2: std.ArrayList(u8) = .{};
+    defer text2.deinit(allocator);
 
     for (diffs) |*diff| {
         if (diff.operation != .insert) {
-            try text1.appendSlice(diff.text);
+            try text1.appendSlice(allocator, diff.text);
         }
         if (diff.operation != .delete) {
-            try text2.appendSlice(diff.text);
+            try text2.appendSlice(allocator, diff.text);
         }
     }
 
     return .{
-        try text1.toOwnedSlice(),
-        try text2.toOwnedSlice(),
+        try text1.toOwnedSlice(allocator),
+        try text2.toOwnedSlice(allocator),
     };
 }
 
@@ -302,7 +302,7 @@ test "chars to lines" {
         },
         .{
             .diffs = &.{try Diff.fromSlice(testing.allocator, &chars, .delete)},
-            .lines = try DiffPrivate.LineArray.fromSlice(testing.allocator, &long_lines),
+            .lines = try DiffPrivate.LineArray.fromSlice(testing.allocator, @ptrCast(&long_lines)),
             .expected = &.{blk: {
                 const str = try std.mem.join(testing.allocator, "", &long_lines);
                 defer testing.allocator.free(str);
@@ -1633,10 +1633,10 @@ test "diff main linemode" {
         defer testing.allocator.free(diffs_textmode);
         defer for (diffs_textmode) |*diff| diff.deinit(testing.allocator);
 
-        const linemode_text1, const linemode_text2 = try diffRebuildTexts(diffs_linemode);
+        const linemode_text1, const linemode_text2 = try diffRebuildTexts(testing.allocator, diffs_linemode);
         defer testing.allocator.free(linemode_text1);
         defer testing.allocator.free(linemode_text2);
-        const textmode_text1, const textmode_text2 = try diffRebuildTexts(diffs_textmode);
+        const textmode_text1, const textmode_text2 = try diffRebuildTexts(testing.allocator, diffs_textmode);
         defer testing.allocator.free(textmode_text1);
         defer testing.allocator.free(textmode_text2);
 

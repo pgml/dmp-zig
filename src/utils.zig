@@ -1,7 +1,7 @@
 const std = @import("std");
 
 ///Encodes a string with URI-style % escaping.
-pub fn encodeURI(writer: anytype, string: []const u8) @TypeOf(writer).Error!void {
+pub fn encodeURI(writer: *std.Io.Writer, string: []const u8) std.Io.Writer.Error!void {
     try std.Uri.Component.percentEncode(writer, string, encodeURIValid);
 }
 fn encodeURIValid(chr: u8) bool {
@@ -21,11 +21,11 @@ pub fn utf8IdxOfX(text: []const u8, x: usize) ?usize {
 }
 
 ///taking a potentially invalid utf8 string return new valid string
-pub fn decodeUtf8(allocator: std.mem.Allocator, text: []const u8) std.mem.Allocator.Error![]u8 {
-    var array_list = try std.ArrayList(u8).initCapacity(allocator, text.len);
-    defer array_list.deinit();
-    try std.unicode.fmtUtf8(text).format(undefined, undefined, array_list.writer());
-    return array_list.toOwnedSlice();
+pub fn decodeUtf8(allocator: std.mem.Allocator, text: []const u8) error{ OutOfMemory, InvalidUtf8 }![]u8 {
+    var writer = try std.Io.Writer.Allocating.initCapacity(allocator, text.len);
+    defer writer.deinit();
+    std.unicode.fmtUtf8(text).format(&writer.writer) catch return error.InvalidUtf8;
+    return writer.toOwnedSlice();
 }
 
 pub fn initUtf8BackwardsIterator(text: []const u8) Utf8BackwardsIterator {
@@ -91,7 +91,8 @@ pub fn resize(comptime T: type, allocator: std.mem.Allocator, slice: *[]T, new_l
 
     //failed to resize
     const new_slice = try allocator.alloc(T, new_len);
-    @memcpy(new_slice[0..len_start], slice.*[0..@min(new_len, len_start)]);
+    const minLen = @min(new_len, len_start);
+    @memcpy(new_slice[0..minLen], slice.*[0..minLen]);
     if (len_start < new_len) @memset(new_slice[len_start..], undefined);
     allocator.free(slice.*);
     slice.* = new_slice;
@@ -208,8 +209,8 @@ test "uri encode decode" {
         text: []const u8,
         expect: []const u8,
     };
-    var arraylist = std.ArrayList(u8).init(testing.allocator);
-    defer arraylist.deinit();
+    var writer = std.Io.Writer.Allocating.init(testing.allocator);
+    defer writer.deinit();
 
     for ([_]TestCases{ .{
         .text = "[^A-Za-z0-9%-=;',./~!@#$%&*%(%)_%+ %?]",
@@ -218,12 +219,13 @@ test "uri encode decode" {
         .text = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 - _ . ! ~ * ' ( ) ; / ? : @ & = + $ , # ",
         .expect = "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 - _ . ! ~ * ' ( ) ; / ? : @ & = + $ , # ",
     } }) |test_case| {
-        arraylist.clearRetainingCapacity();
-        try encodeURI(arraylist.writer(), test_case.text);
-        try testing.expectEqualStrings(test_case.expect, arraylist.items);
+        writer.clearRetainingCapacity();
+        try encodeURI(&writer.writer, test_case.text);
+        var writen = writer.written();
+        try testing.expectEqualStrings(test_case.expect, writen);
 
-        arraylist.items = std.Uri.percentDecodeInPlace(arraylist.items);
-        try testing.expectEqualStrings(test_case.text, arraylist.items);
+        writen = std.Uri.percentDecodeInPlace(writen);
+        try testing.expectEqualStrings(test_case.text, writen);
     }
 }
 

@@ -286,12 +286,11 @@ test "patch format" {
     defer patch.deinit(testing.allocator);
     const expect = "@@ -21,18 +22,17 @@\n jump\n-s\n+ed\n  over \n-the\n+a\n %0Alaz\n";
 
-    var arraylist = std.ArrayList(u8).init(testing.allocator);
-    defer arraylist.deinit();
-    const writer = arraylist.writer();
+    var writer = std.Io.Writer.Allocating.init(testing.allocator);
+    defer writer.deinit();
 
-    try std.fmt.format(writer, "{}", .{patch});
-    try testing.expectEqualStrings(expect, arraylist.items);
+    try writer.writer.print("{f}", .{patch});
+    try testing.expectEqualStrings(expect, writer.written());
 }
 
 test "patch long and no free use" {
@@ -316,7 +315,7 @@ test "patch long and no free use" {
     defer testing.allocator.free(actual);
 
     try testing.expectEqualStrings(expected, actual);
-    for (patches.items) |patch| std.debug.print("\n{d} {d} {d} {d} {any}\n", .{ patch.start1, patch.start2, patch.length1, patch.length2, patch.diffs });
+    // for (patches.items) |patch| std.debug.print("\n{d} {d} {d} {d} {any}\n", .{ patch.start1, patch.start2, patch.length1, patch.length2, patch.diffs });
 
     try testing.expectEqualStrings(str1_src, str1);
     try testing.expectEqualStrings(str2_src, str2);

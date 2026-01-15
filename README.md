@@ -3,7 +3,7 @@ Zig port of the [diff-match-patch](https://github.com/google/diff-match-patch/) 
 for comparing and updating and patching texts
 
 ## Zig Version
-0.13.0
+0.15.0
 
 ## Example
 ```zig
@@ -67,4 +67,13 @@ Additionally, this project references code from [go-diff](https://github.com/ser
 
 # License
 This project is licensed under the [MIT License](./LICENSE).
+
+
+# TODO
+
+- make example applications
+- improve errors (don't just throw up, make them consistent)
+- make more tests
+- add fuzzing
+- add asserts
 

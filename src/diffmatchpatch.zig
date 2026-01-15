@@ -1,15 +1,12 @@
 const std = @import("std");
 const utils = @import("utils.zig");
 
-const diff = @import("diff.zig");
-const match = @import("match.zig");
-const patch = @import("patch.zig");
+pub const diff = @import("diff.zig");
+pub const match = @import("match.zig");
+pub const patch = @import("patch.zig");
 
-comptime {
-    _ = @import("diff_test.zig");
-    _ = @import("match_test.zig");
-    _ = @import("patch_test.zig");
-    _ = @import("utils.zig");
+test {
+    std.testing.refAllDeclsRecursive(@This());
 }
 
 pub const DiffMatchPatch = DiffMatchPatchCustom(u32);
@@ -23,7 +20,7 @@ pub const Diff = diff.Diff;
 pub const diff_max_duration = diff.diff_max_duration;
 
 pub const PatchList = patch.PatchList;
-pub const PatchDiffsArrayList = patch.PatchDiffsArrayList;
+// pub const PatchDiffsArrayList = patch.PatchDiffsArrayList;
 pub const Patch = patch.Patch;
 
 ///DiffMatchPatch struct
@@ -105,18 +102,18 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return diff.xIndex(diffs, loc);
         }
         ///Convert a Diff list into a pretty HTML report.
-        pub inline fn diffPrettyHtml(self: Self, diffs: []Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffPrettyHtml(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.prettyHtml(self.allocator, diffs);
         }
-        pub inline fn diffPrettyHtmlWriter(self: Self, writer: anytype, diffs: []Diff) @TypeOf(writer).Error!void {
+        pub inline fn diffPrettyHtmlWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.prettyHtmlWriter(writer, diffs);
         }
         ///Converts a []Diff into a colored text report.
-        pub inline fn diffPrettyText(self: Self, diffs: []Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffPrettyText(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.prettyText(self.allocator, diffs);
         }
-        pub inline fn diffPrettyTextWriter(self: Self, writer: anytype, diffs: []Diff) @TypeOf(writer).Error!void {
+        pub inline fn diffPrettyTextWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.prettyTextWriter(writer, diffs);
         }
@@ -137,10 +134,10 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         ///required to transform text1 into text2.
         ///E.g. =3\t-2\t+ing  -> Keep 3 chars, delete 2 chars, insert 'ing'.
         ///Operations are tab-separated.  Inserted text is escaped using %xx notation.
-        pub inline fn diffToDelta(self: Self, diffs: []Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffToDelta(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.toDelta(self.allocator, diffs);
         }
-        pub inline fn diffToDeltaWriter(self: Self, writer: anytype, diffs: []Diff) @TypeOf(writer).Error!void {
+        pub inline fn diffToDeltaWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.toDeltaWriter(writer, diffs);
         }
@@ -173,7 +170,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         // patch make parts
         ///Compute a list of patches to turn text1 into text2.
         ///A set of diffs will be computed.
-        pub inline fn patchMakeStringString(self: Self, text1: []const u8, text2: []const u8) std.mem.Allocator.Error!PatchList {
+        pub inline fn patchMakeStringString(self: Self, text1: []const u8, text2: []const u8) (std.mem.Allocator.Error || error{InvalidUtf8})!PatchList {
             return patch.makeStringString(MatchMaxContainer, self.allocator, self.patch_margin, self.diff_edit_cost, self.diff_timeout, text1, text2);
         }
         ///Compute a list of patches to turn text1 into text2.
@@ -213,7 +210,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return patch.splitMax(MatchMaxContainer, self.allocator, self.patch_margin, patches);
         }
         ///Take a list of patches and return a textual representation.
-        pub inline fn patchToText(self: Self, patches: PatchList) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn patchToText(self: Self, patches: PatchList) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return patch.toText(self.allocator, patches);
         }
         ///Parse a textual representation of patches and return a List of Patch objects.

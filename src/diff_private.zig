@@ -76,8 +76,8 @@ pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text
     return mainStringStringBoolTimeoutTimer(allocator, diff_timeout, t1, t2, check_lines, ns_time_limit, &timer);
 }
 fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64, timer: *Timer) Allocator.Error![]Diff {
-    var diffs = std.ArrayList(Diff).init(allocator);
-    defer diffs.deinit();
+    var diffs: std.ArrayList(Diff) = .{};
+    defer diffs.deinit(allocator);
     errdefer for (diffs.items) |*diff| diff.deinit(allocator);
 
     std.debug.assert(std.unicode.utf8ValidateSlice(text1));
@@ -86,9 +86,9 @@ fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, tex
     // Check for equality (speedup).
     if (std.mem.eql(u8, text1, text2)) {
         if (text1.len != 0) {
-            try diffs.append(try Diff.fromSlice(allocator, text1, .equal));
+            try diffs.append(allocator, try Diff.fromSlice(allocator, text1, .equal));
         }
-        return diffs.toOwnedSlice();
+        return diffs.toOwnedSlice(allocator);
     }
 
     var text_chopped1: []const u8 = undefined;
@@ -120,18 +120,18 @@ fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, tex
         };
         defer allocator.free(computed_diffs);
         errdefer for (computed_diffs) |*diff| diff.deinit(allocator);
-        try diffs.appendSlice(computed_diffs);
+        try diffs.appendSlice(allocator, computed_diffs);
     }
 
     // Restore the prefix and suffix.
     if (common_prefix.len != 0) {
-        try diffs.insert(0, try Diff.fromSlice(allocator, common_prefix, .equal));
+        try diffs.insert(allocator, 0, try Diff.fromSlice(allocator, common_prefix, .equal));
     }
     if (common_suffix.len != 0) {
-        try diffs.append(try Diff.fromSlice(allocator, common_suffix, .equal));
+        try diffs.append(allocator, try Diff.fromSlice(allocator, common_suffix, .equal));
     }
 
-    var res = try diffs.toOwnedSlice();
+    var res = try diffs.toOwnedSlice(allocator);
     try diff_funcs.cleanupMerge(allocator, &res);
 
     return res;
@@ -152,20 +152,20 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
     std.debug.assert(std.unicode.utf8ValidateSlice(text1));
     std.debug.assert(std.unicode.utf8ValidateSlice(text2));
 
-    var diffs = std.ArrayList(Diff).init(allocator);
-    defer diffs.deinit();
+    var diffs: std.ArrayList(Diff) = .{};
+    defer diffs.deinit(allocator);
     errdefer for (diffs.items) |*diff| diff.deinit(allocator);
 
     if (text1.len == 0) {
         // Just add some text (speedup).
-        try diffs.append(try Diff.fromSlice(allocator, text2, .insert));
-        return diffs.toOwnedSlice();
+        try diffs.append(allocator, try Diff.fromSlice(allocator, text2, .insert));
+        return diffs.toOwnedSlice(allocator);
     }
 
     if (text2.len == 0) {
         // Just delete some text (speedup).
-        try diffs.append(try Diff.fromSlice(allocator, text1, .delete));
-        return diffs.toOwnedSlice();
+        try diffs.append(allocator, try Diff.fromSlice(allocator, text1, .delete));
+        return diffs.toOwnedSlice(allocator);
     }
 
     const text1_longer = text1.len > text2.len;
@@ -174,18 +174,18 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
     if (std.mem.indexOf(u8, long_text, short_text)) |idx| {
         // Shorter text is inside the longer text (speedup).
         const op = if (text1_longer) DiffOperation.delete else DiffOperation.insert;
-        try diffs.append(try Diff.fromSlice(allocator, long_text[0..idx], op));
-        try diffs.append(try Diff.fromSlice(allocator, short_text, .equal));
-        try diffs.append(try Diff.fromSlice(allocator, long_text[idx + short_text.len ..], op));
-        return diffs.toOwnedSlice();
+        try diffs.append(allocator, try Diff.fromSlice(allocator, long_text[0..idx], op));
+        try diffs.append(allocator, try Diff.fromSlice(allocator, short_text, .equal));
+        try diffs.append(allocator, try Diff.fromSlice(allocator, long_text[idx + short_text.len ..], op));
+        return diffs.toOwnedSlice(allocator);
     }
 
     if (short_text.len == 1) {
         // Single character string.
         // After the previous speedup, the character can't be an equality.
-        try diffs.append(try Diff.fromSlice(allocator, text1, .delete));
-        try diffs.append(try Diff.fromSlice(allocator, text2, .insert));
-        return diffs.toOwnedSlice();
+        try diffs.append(allocator, try Diff.fromSlice(allocator, text1, .delete));
+        try diffs.append(allocator, try Diff.fromSlice(allocator, text2, .insert));
+        return diffs.toOwnedSlice(allocator);
     }
 
     // Check to see if the problem can be split in two.
@@ -199,11 +199,11 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
         defer allocator.free(diffs_b);
 
         // Merge the results.
-        try diffs.appendSlice(diffs_a);
-        try diffs.append(Diff{ .text = hm.common, .operation = .equal });
-        try diffs.appendSlice(diffs_b);
+        try diffs.appendSlice(allocator, diffs_a);
+        try diffs.append(allocator, Diff{ .text = hm.common, .operation = .equal });
+        try diffs.appendSlice(allocator, diffs_b);
 
-        return diffs.toOwnedSlice();
+        return diffs.toOwnedSlice(allocator);
     }
 
     // Perform a real diff.
@@ -248,30 +248,30 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
 
     // Rediff any replacement blocks. this time charecter-by-charecter.
     // Add a dummy entry at the the end.
-    var diff_list = std.ArrayList(Diff).fromOwnedSlice(allocator, diffs);
-    defer diff_list.deinit();
+    var diff_list = std.ArrayList(Diff).fromOwnedSlice(diffs);
+    defer diff_list.deinit(allocator);
     errdefer for (diff_list.items) |*diff| diff.deinit(allocator);
-    try diff_list.append(try Diff.fromSlice(allocator, "", .equal));
+    try diff_list.append(allocator, try Diff.fromSlice(allocator, "", .equal));
 
     var pointer: usize = 0;
     var count_delete: usize = 0;
     var count_insert: usize = 0;
 
-    var text_insert = std.ArrayList(u8).init(allocator);
-    defer text_insert.deinit();
-    var text_delete = std.ArrayList(u8).init(allocator);
-    defer text_delete.deinit();
+    var text_insert: std.ArrayList(u8) = .{};
+    defer text_insert.deinit(allocator);
+    var text_delete: std.ArrayList(u8) = .{};
+    defer text_delete.deinit(allocator);
 
     while (pointer < diff_list.items.len) {
         const diff = diff_list.items[pointer];
         switch (diff.operation) {
             .insert => {
                 count_insert += 1;
-                try text_insert.appendSlice(diff.text);
+                try text_insert.appendSlice(allocator, diff.text);
             },
             .delete => {
                 count_delete += 1;
-                try text_delete.appendSlice(diff.text);
+                try text_delete.appendSlice(allocator, diff.text);
             },
             .equal => {
                 // Upon reaching an equality. check for prior redundancies.
@@ -281,14 +281,14 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
                     const del_len = count_delete + count_insert;
 
                     for (diff_list.items[del_idx .. del_idx + del_len]) |*d| d.deinit(allocator);
-                    try diff_list.replaceRange(del_idx, del_len, &.{});
+                    try diff_list.replaceRange(allocator, del_idx, del_len, &.{});
                     pointer = del_idx;
 
                     const a = try mainStringStringBoolTimeoutTimer(allocator, diff_timeout, text_delete.items, text_insert.items, false, ns_time_limit, timer);
                     defer allocator.free(a);
                     errdefer for (a) |*d| d.deinit(allocator);
 
-                    try diff_list.insertSlice(pointer, a);
+                    try diff_list.insertSlice(allocator, pointer, a);
                     pointer += a.len;
                 }
 
@@ -302,8 +302,9 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
     }
 
     // remove dummy entry at the end
+    std.debug.assert(diff_list.items.len > 0);
     diff_list.items.len -= 1;
-    return diff_list.toOwnedSlice();
+    return diff_list.toOwnedSlice(allocator);
 }
 
 ///Find the 'middle snake' of a diff, split the problem in two
@@ -410,7 +411,7 @@ fn bisectTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2
             var y2 = x2 - k2;
             while (@as(usize, @intCast(x2)) < text1_len and @as(usize, @intCast(y2)) < text2_len and
                 t1[utils.utf8IdxOfX(t1, @intCast(@as(isize, @intCast(text1_len)) - x2 - 1)).?] ==
-                t2[utils.utf8IdxOfX(t2, @intCast(@as(isize, @intCast(text2_len)) - y2 - 1)).?])
+                    t2[utils.utf8IdxOfX(t2, @intCast(@as(isize, @intCast(text2_len)) - y2 - 1)).?])
             {
                 x2 += 1;
                 y2 += 1;
@@ -544,11 +545,11 @@ pub fn charsToLinesLineArray(allocator: Allocator, diffs: *[]Diff, line_array: L
 
 ///Rehydrate the text in a diff from a string of line hashes to real lines of text.
 pub fn charsToLines(allocator: Allocator, diffs: *[]Diff, line_array: [][]const u8) Allocator.Error!void {
-    var text = std.ArrayList(u21).init(allocator);
-    defer text.deinit();
+    var text: std.ArrayList(u21) = .{};
+    defer text.deinit(allocator);
     for (diffs.*) |*diff| {
         text.clearRetainingCapacity();
-        try text.ensureTotalCapacity(diff.text.len); // will most likly be shorter but this is the max needed to hold it
+        try text.ensureTotalCapacity(allocator, diff.text.len); // will most likely be shorter but this is the max needed to hold it
         var len: usize = 0;
         var i: usize = 0;
         while (i < diff.text.len) : (i += 1) {

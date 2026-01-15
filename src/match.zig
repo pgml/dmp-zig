@@ -1,5 +1,8 @@
 const std = @import("std");
-const DMP = @import("diffmatchpatch.zig");
+
+comptime {
+    _ = @import("match_test.zig");
+}
 
 const Allocator = std.mem.Allocator;
 
@@ -37,7 +40,7 @@ pub fn bitap(comptime MatchMaxContainer: type, allocator: Allocator, match_dista
     }
     const ShiftContainer: type = comptime blk: {
         const t = std.builtin.Type{
-            .Int = .{
+            .int = .{
                 .signedness = .unsigned,
                 .bits = @ceil(@log2(@as(f32, @floatFromInt(match_max_bits)))),
             },
