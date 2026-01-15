@@ -856,7 +856,7 @@ pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!
 
 ///Given the original text1, and an encoded string which describes the
 ///operations required to transform text1 into text2, compute the full diff.
-pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.Allocator.Error)![]Diff {
+pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.mem.Allocator.Error)![]Diff {
     var diffs: std.ArrayList(Diff) = .{};
     defer diffs.deinit(allocator);
     errdefer for (diffs.items) |*diff| diff.deinit(allocator);
