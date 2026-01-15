@@ -143,7 +143,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///Given the original text1, and an encoded string which describes the
         ///operations required to transform text1 into text2, compute the full diff.
-        pub fn diffFromDelta(self: Self, text1: []const u8, delta: []const u8) (DiffError || std.fmt.ParseIntError || std.mem.Allocator.Error)![]Diff {
+        pub fn diffFromDelta(self: Self, text1: []const u8, delta: []const u8) (DiffError || std.mem.Allocator.Error)![]Diff {
             return diff.fromDelta(self.allocator, text1, delta);
         }
 

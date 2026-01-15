@@ -14,6 +14,7 @@ pub const diff_max_duration = std.math.maxInt(u64);
 pub const Error = error{
     DeltaContainsIlligalOperation,
     DeltaContainsInvalidUTF8,
+    DeltaBadNumber,
     DeltaContainsNegetiveNumber,
     DeltaLongerThenSource,
     DeltaShorterThenSource,
@@ -855,7 +856,7 @@ pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!
 
 ///Given the original text1, and an encoded string which describes the
 ///operations required to transform text1 into text2, compute the full diff.
-pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.fmt.ParseIntError || Allocator.Error)![]Diff {
+pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.Allocator.Error)![]Diff {
     var diffs: std.ArrayList(Diff) = .{};
     defer diffs.deinit(allocator);
     errdefer for (diffs.items) |*diff| diff.deinit(allocator);
@@ -881,7 +882,7 @@ pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (E
                 try diffs.append(allocator, try Diff.fromSlice(allocator, line, .insert));
             },
             '-', '=' => {
-                const count = try std.fmt.parseInt(isize, param, 10);
+                const count = std.fmt.parseInt(isize, param, 10) catch return Error.DeltaBadNumber;
                 if (count < 0) return Error.DeltaContainsNegetiveNumber;
 
                 if (pointer > text_a.len) return Error.DeltaLongerThenSource;
