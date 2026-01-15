@@ -201,6 +201,10 @@ const DiffMatchPatch = extern struct {
     patch_margin: c_ushort = 4,
 };
 
+export fn getDefaultDMP(dmp: *DiffMatchPatch) void {
+    dmp.* = DiffMatchPatch{};
+}
+
 const DiffOperation = enum(c_int) {
     delete = @intFromEnum(diff.Operation.delete),
     equal = @intFromEnum(diff.Operation.equal),
