@@ -11,7 +11,40 @@ const patch = @import("patch.zig");
 const isWasm = @import("builtin").target.os.tag == .freestanding and @import("builtin").target.cpu.arch.isWasm();
 const allocator = if (isWasm) std.heap.wasm_allocator else std.heap.c_allocator;
 
+pub const ErrSource = enum(u32) {
+    function_alloc,
+    function_free,
+    function_alloc_string,
+    function_free_string,
+    function_free_patch_list,
+    function_free_diffs_list,
+};
+
+};
+
+// For WASM: extern function (required)
+// For lib: extern var (optional function pointer)
+var onError = if (isWasm)
+    @extern(*const fn (source: ErrSource, err: [*:0]const u8) callconv(.c) void, .{ .name = "onError" })
+else
+    @extern(?*const fn (source: ErrSource, err: [*:0]const u8) callconv(.c) void, .{ .name = "onError" });
+
+fn callOnError(source: ErrSource, err: [*:0]const u8) void {
+    if (isWasm) {
+        onError(source, err);
+    } else {
+        if (onError) |callback| {
+            callback(source, err);
+        }
+    }
+}
+
 export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.c) void {
+    if (patches == 0 or patches == null) {
+        callOnError(.function_free_patch_list, "Cannot free 0");
+        return;
+    }
+
     const patch_slice = patches[0..@intCast(patches_len)];
     defer allocator.free(patch_slice);
     for (patch_slice) |p| {
@@ -20,6 +53,11 @@ export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.c) voi
 }
 
 export fn freeDiffList(diffs: [*c]Diff, diffs_len: c_int) callconv(.c) void {
+    if (diffs == 0 or diffs == null) {
+        callOnError(.function_free_diffs_list, "Cannot free 0");
+        return;
+    }
+
     const diffs_slice = diffs[0..@intCast(diffs_len)];
     defer allocator.free(diffs_slice);
     for (diffs_slice) |d| {
@@ -36,11 +74,43 @@ export fn freeDiff(d: Diff) callconv(.c) void {
 }
 
 export fn freeString(str: [*c]const u8) callconv(.c) void {
+    if (str == 0 or str == null) {
+        callOnError(.function_free_string, "Cannot free 0");
+        return;
+    }
+
     allocator.free(std.mem.span(str));
 }
 export fn allocString(text_len: c_uint) [*c]u8 {
-    const text = allocator.alloc(u8, @intCast(text_len)) catch return null;
+    const text = allocator.alloc(u8, @intCast(text_len)) catch {
+        callOnError(.function_alloc_string, "Error allocating memory");
+        return null;
+    };
     return text.ptr;
+}
+
+fn allocFn(len: usize) callconv(.c) usize {
+    const mem = allocator.alloc(u8, len) catch {
+        callOnError(.function_alloc, "Error allocating memory");
+        return 0;
+    };
+    return @intFromPtr(mem.ptr);
+}
+fn free(ptr: usize, len: usize) callconv(.c) void {
+    if (ptr == 0) {
+        callOnError(.function_free, "Cannot free 0");
+        return;
+    }
+    const pointer: [*]u8 = @ptrFromInt(ptr);
+    const slice = pointer[0..len];
+    allocator.free(slice);
+}
+
+comptime {
+    if (isWasm) {
+        @export(&allocFn, .{ .name = "alloc" });
+        @export(&free, .{ .name = "free" });
+    }
 }
 
 const MatchContainer = u32;
