@@ -12,6 +12,7 @@ const isWasm = @import("builtin").target.os.tag == .freestanding and @import("bu
 const allocator = if (isWasm) std.heap.wasm_allocator else std.heap.c_allocator;
 
 pub const ErrSource = enum(u32) {
+    none,
     function_alloc,
     function_free,
     function_alloc_string,
@@ -83,21 +84,36 @@ fn callErrorHandled(source: ErrSource, err: Errors) void {
     });
 }
 
+var lastError = ErrorInfo{ .source = .none, .message = "" };
+const ErrorInfo = extern struct {
+    source: ErrSource,
+    message: [*:0]const u8,
+};
+
 // For WASM: extern function (required)
 // For lib: extern var (optional function pointer)
 var onError = if (isWasm)
-    @extern(*const fn (source: ErrSource, err: [*:0]const u8) callconv(.c) void, .{ .name = "onError" })
+    @extern(*const fn (err: ErrorInfo) callconv(.c) void, .{ .name = "onError" })
 else
-    @extern(?*const fn (source: ErrSource, err: [*:0]const u8) callconv(.c) void, .{ .name = "onError" });
+    @extern(?*const fn (err: ErrorInfo) callconv(.c) void, .{ .name = "onError" });
 
 fn callOnError(source: ErrSource, err: [*:0]const u8) void {
+    lastError = .{
+        .source = source,
+        .message = err,
+    };
+
     if (isWasm) {
-        onError(source, err);
+        onError(lastError);
     } else {
         if (onError) |callback| {
-            callback(source, err);
+            callback(lastError);
         }
     }
+}
+
+export fn getLastError(err: *ErrorInfo) void {
+    err.* = lastError;
 }
 
 export fn freePatchList(patches: [*c]Patch, patches_len: c_int) callconv(.c) void {
