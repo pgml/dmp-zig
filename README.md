@@ -45,7 +45,7 @@ Another option is to have the files locally (either by copying them or by using 
 You can then add it to the imports by adding to your `build.zig` file
 ```zig
 const dmp = b.dependency("diffmatchpatch", .{});
-exe.root_module.addImport("diffmatchpatch", dmp.module("root"));
+exe.root_module.addImport("diffmatchpatch", dmp.module("diffmatchpatch"));
 ```
 
 ### Using with other languages
@@ -75,5 +75,6 @@ This project is licensed under the [MIT License](./LICENSE).
 - improve errors (don't just throw up, make them consistent)
 - make more tests
 - add fuzzing
-- add asserts
-
+- add more asserts
+- add more documentation
+- make more consistent with std, allocations means take an allocator

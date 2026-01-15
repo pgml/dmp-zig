@@ -61,7 +61,7 @@ pub const LineArray = struct {
 
 ///Find the differences between two texts.  Simplifies the problem by
 ///stripping any common prefix or suffix off the texts before diffing.
-pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64) ![]Diff {
+pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64) error{ OutOfMemory, InvalidUtf8 }![]Diff {
     var timer = Timer.start() catch @panic("Timer not available");
 
     const t1_valid = std.unicode.utf8ValidateSlice(text1);

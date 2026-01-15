@@ -59,7 +59,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         ///Run a faster, slightly less optimal diff.
         ///This method allows the 'checklines' of `diffMainStringStringBool` to be optional.
         ///Most of the time checklines is wanted, so default to true.
-        pub inline fn diffMainStringString(self: Self, text1: []const u8, text2: []const u8) std.mem.Allocator.Error![]Diff {
+        pub inline fn diffMainStringString(self: Self, text1: []const u8, text2: []const u8) (error{InvalidUtf8} || std.mem.Allocator.Error)![]Diff {
             return diff.mainStringString(self.allocator, self.diff_timeout, text1, text2);
         }
         ///Find the differences between two texts.
