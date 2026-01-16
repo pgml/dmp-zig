@@ -3,7 +3,7 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{
-        .preferred_optimize_mode = .ReleaseSafe,
+        // .preferred_optimize_mode = .ReleaseSafe,
     });
 
     const linkage = b.option(std.builtin.LinkMode, "linkage", "build lib as a dynamic lib") orelse .static;
@@ -29,7 +29,7 @@ pub fn build(b: *std.Build) void {
     var lib: *std.Build.Step.Compile = undefined;
     if (isWasm) {
         lib = b.addExecutable(.{
-            .name = "dmp",
+            .name = "diffmatchpatch",
             .root_module = b.createModule(.{
                 .root_source_file = b.path("./src/lib.zig"),
                 .target = wasm_target,
@@ -41,6 +41,8 @@ pub fn build(b: *std.Build) void {
         lib.rdynamic = true; // exports functions instead of export table ??
         lib.entry = .disabled;
         // lib.export_memory = true;
+
+        b.getInstallStep().dependOn(&b.addInstallHeaderFile(b.path("src/bindings/dmp.mjs"), "dmp.mjs").step);
     } else {
         lib = b.addLibrary(.{
             .name = "diffmatchpatch",
