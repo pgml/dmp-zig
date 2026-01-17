@@ -56,7 +56,7 @@ pub fn build(b: *std.Build) void {
             }),
             .linkage = linkage,
         });
-        // b.getInstallStep().dependOn(&b.addInstallHeaderFile(lib.getEmittedH(), "isbn.h").step);
+        b.getInstallStep().dependOn(&b.addInstallHeaderFile(b.path("src/bindings/dmp.h"), "dmp.h").step);
     }
 
     b.installArtifact(lib);
