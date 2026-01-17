@@ -158,13 +158,6 @@ export fn freeString(str: [*c]const u8) callconv(.c) void {
 
     allocator.free(std.mem.span(str));
 }
-export fn allocString(text_len: c_uint) [*c]u8 {
-    const text = allocator.alloc(u8, @intCast(text_len)) catch {
-        callOnError(.function_alloc_string, "Error allocating memory");
-        return null;
-    };
-    return text.ptr;
-}
 
 fn allocFn(len: usize) callconv(.c) usize {
     const mem = allocator.alloc(u8, len) catch {
@@ -437,19 +430,19 @@ export fn diffToDelta(diffs: [*c]const Diff, diffs_len: c_int) callconv(.c) [*c]
     return delta.ptr;
 }
 
-export fn diffFromDelta(text: [*c]const u8, delta: [*c]const u8, out_diffs_len: *c_int) callconv(.c) [*c]Diff {
-    out_diffs_len.* = -1;
+export fn diffFromDelta(text: [*c]const u8, delta: [*c]const u8, out_diffs: *[*c]Diff) callconv(.c) c_int {
+    out_diffs.* = null;
     const diffs = diff.fromDelta(allocator, std.mem.span(text), std.mem.span(delta)) catch |err| {
         callErrorHandled(.function_diff_from_delta, err);
-        return null;
+        return -1;
     };
 
     const o_diffs = dmpDifflistToExtern(allocator, diffs) catch |err| {
         callErrorHandled(.function_diff_from_delta, err);
-        return null;
+        return -1;
     };
-    out_diffs_len.* = @intCast(o_diffs.len);
-    return o_diffs.ptr;
+    out_diffs.* = o_diffs.ptr;
+    return @intCast(o_diffs.len);
 }
 
 // match -----------------
@@ -476,11 +469,6 @@ export fn matchMain(dmp: DiffMatchPatch, text: [*c]const u8, pattern: [*c]const 
 comptime {
     if (!isWasm) {
         @export(&patchMake, .{ .name = "patchMake" });
-    } else {
-        @export(&patchMakeStringString, .{ .name = "patchMakeStringString" });
-        @export(&patchMakeDiffs, .{ .name = "patchMakeDiffs" });
-        @export(&patchMakeStringDiffs, .{ .name = "patchMakeStringDiffs" });
-        @export(&patchMakeStringStringDiffs, .{ .name = "patchMakeStringStringDiffs" });
     }
 }
 
@@ -498,50 +486,46 @@ comptime {
 ///a = text1, b = text2, c = diffs, d = diffs_len
 ///
 ///returns pointer and len in out_patches_len
-fn patchMake(dmp: DiffMatchPatch, out_patches_len: *c_int, mode: c_int, ...) callconv(.c) [*c]Patch {
+fn patchMake(dmp: DiffMatchPatch, out_patches: *[*c]Patch, mode: c_int, ...) callconv(.c) c_int {
     var ap = @cVaStart();
     defer @cVaEnd(&ap);
-    out_patches_len.* = -1;
+    out_patches.* = null;
 
-    const e_patches = switch (mode) {
+    return switch (mode) {
         1 => blk: {
             const text1: [*c]const u8 = @cVaArg(&ap, [*c]const u8);
             const text2: [*c]const u8 = @cVaArg(&ap, [*c]const u8);
-            break :blk patchMakeStringString(dmp, text1, text2, out_patches_len);
+            break :blk patchMakeStringString(dmp, text1, text2, out_patches);
         },
         2 => blk: {
             const diffs: [*c]const Diff = @cVaArg(&ap, [*c]const Diff);
             const diffs_len: usize = @intCast(@cVaArg(&ap, c_int));
-            break :blk patchMakeDiffs(dmp, diffs, diffs_len, out_patches_len);
+            break :blk patchMakeDiffs(dmp, diffs, diffs_len, out_patches);
         },
         3 => blk: {
             const text1: [*c]const u8 = @cVaArg(&ap, [*c]const u8);
             const diffs: [*c]const Diff = @cVaArg(&ap, [*c]const Diff);
             const diffs_len: usize = @intCast(@cVaArg(&ap, c_int));
-            break :blk patchMakeStringDiffs(dmp, text1, diffs, diffs_len, out_patches_len);
+            break :blk patchMakeStringDiffs(dmp, text1, diffs, diffs_len, out_patches);
         },
         4 => blk: {
             const text1: [*c]const u8 = @cVaArg(&ap, [*c]const u8);
             const text2: [*c]const u8 = @cVaArg(&ap, [*c]const u8);
             const diffs: [*c]const Diff = @cVaArg(&ap, [*c]const Diff);
             const diffs_len: usize = @intCast(@cVaArg(&ap, c_int));
-            break :blk patchMakeStringStringDiffs(dmp, text1, text2, diffs, diffs_len, out_patches_len);
+            break :blk patchMakeStringStringDiffs(dmp, text1, text2, diffs, diffs_len, out_patches);
         },
         else => {
             callErrorHandled(.function_patch_make, error.InvalidMode);
-            return null;
+            return -1;
         },
     };
-
-    if (e_patches == null) return null;
-
-    out_patches_len.* = @intCast(e_patches.len);
-    return e_patches.ptr;
 }
-fn patchMakeStringString(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, out_patches_len: *c_int) callconv(.c) [*c]Patch {
+export fn patchMakeStringString(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, out_patches: *[*c]Patch) callconv(.c) c_int {
+    out_patches.* = null;
     if (text1 == null or text2 == null) {
         callErrorHandled(.function_patch_make, error.NullInputs);
-        return null;
+        return -1;
     }
     const ret = patch.makeStringString(
         MatchContainer,
@@ -553,40 +537,42 @@ fn patchMakeStringString(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]co
         std.mem.span(text2),
     ) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
 
     const e_patches = dmpPatchlistToExtern(allocator, ret) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
-    out_patches_len.* = @intCast(e_patches.len);
-    return e_patches.ptr;
+    out_patches.* = e_patches.ptr;
+    return @intCast(e_patches.len);
 }
-fn patchMakeDiffs(dmp: DiffMatchPatch, diffs: [*c]const Diff, diffs_len: c_int, out_patches_len: *c_int) callconv(.c) [*c]Patch {
+export fn patchMakeDiffs(dmp: DiffMatchPatch, diffs: [*c]const Diff, diffs_len: c_int, out_patches: *[*c]Patch) callconv(.c) c_int {
+    out_patches.* = null;
     const diff_int = dmpDiffListFromExtern(allocator, diffs[0..diffs_len]) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const ret = patch.makeDiffs(MatchContainer, allocator, dmp.patch_margin, diff_int) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const e_patches = dmpPatchlistToExtern(allocator, ret) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
-    out_patches_len.* = @intCast(e_patches.len);
-    return e_patches.ptr;
+    out_patches.* = e_patches.ptr;
+    return @intCast(e_patches.len);
 }
-fn patchMakeStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, diffs: [*c]const Diff, diffs_len: c_int, out_patches_len: *c_int) callconv(.c) [*c]Patch {
+export fn patchMakeStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, diffs: [*c]const Diff, diffs_len: c_int, out_patches: *[*c]Patch) callconv(.c) c_int {
+    out_patches.* = null;
     if (text1 == null or diffs == null) {
         callErrorHandled(.function_patch_make, error.NullInputs);
-        return null;
+        return -1;
     }
     const diff_int = dmpDiffListFromExtern(allocator, diffs[0..diffs_len]) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const ret = patch.makeStringDiffs(
         MatchContainer,
@@ -598,23 +584,24 @@ fn patchMakeStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, diffs: [*c]con
         diff_int,
     ) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const e_patches = dmpPatchlistToExtern(allocator, ret) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
-    out_patches_len.* = @intCast(e_patches.len);
-    return e_patches.ptr;
+    out_patches.* = e_patches.ptr;
+    return @intCast(e_patches.len);
 }
-fn patchMakeStringStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, diffs: [*c]const Diff, diffs_len: c_int, out_patches_len: *c_int) callconv(.c) [*c]Patch {
+export fn patchMakeStringStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [*c]const u8, diffs: [*c]const Diff, diffs_len: c_int, out_patches: *[*c]Patch) callconv(.c) c_int {
+    out_patches.* = null;
     if (text1 == null or text2 == null or diffs == null) {
         callErrorHandled(.function_patch_make, error.NullInputs);
-        return null;
+        return -1;
     }
     const diff_int = dmpDiffListFromExtern(allocator, diffs[0..diffs_len]) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const ret = patch.makeStringStringDiffs(
         MatchContainer,
@@ -627,33 +614,35 @@ fn patchMakeStringStringDiffs(dmp: DiffMatchPatch, text1: [*c]const u8, text2: [
         diff_int,
     ) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
     const e_patches = dmpPatchlistToExtern(allocator, ret) catch |err| {
         callErrorHandled(.function_patch_make, err);
-        return null;
+        return -1;
     };
-    out_patches_len.* = @intCast(e_patches.len);
-    return e_patches.ptr;
+    out_patches.* = e_patches.ptr;
+    return @intCast(e_patches.len);
 }
 
-export fn patchDeepCopy(patches: [*c]const Patch, patches_len: c_int) callconv(.c) [*c]Patch {
+export fn patchDeepCopy(patches: [*c]const Patch, patches_len: c_int, out_patches: *[*c]Patch) callconv(.c) c_int {
+    out_patches.* = null;
     var i_patches = dmpPatchListFromExtern(allocator, patches[0..@intCast(patches_len)]) catch |err| {
         callErrorHandled(.function_patch_deep_copy, err);
-        return null;
+        return -1;
     };
     defer i_patches.deinit();
 
     const p_copy = patch.deepCopy(allocator, i_patches) catch |err| {
         callErrorHandled(.function_patch_deep_copy, err);
-        return null;
+        return -1;
     };
 
     const o_patches = dmpPatchlistToExtern(allocator, p_copy) catch |err| {
         callErrorHandled(.function_patch_deep_copy, err);
-        return null;
+        return -1;
     };
-    return o_patches.ptr;
+    out_patches.* = o_patches.ptr;
+    return o_patches.len;
 }
 
 export fn patchApply(dmp: DiffMatchPatch, patches: [*c]const Patch, patches_len: c_int, text: [*c]const u8, out_applied: *[*c]bool) callconv(.c) [*c]const u8 {
@@ -741,8 +730,7 @@ export fn patchToText(patches: [*c]const Patch, patches_len: c_int) callconv(.c)
     return text.ptr;
 }
 
-export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch, out_patches_len: *c_int) callconv(.c) c_int {
-    out_patches_len.* = -1;
+export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch) callconv(.c) c_int {
     out_patches.* = null;
 
     const i_patches = patch.fromText(allocator, std.mem.span(text)) catch |err| {
@@ -755,8 +743,7 @@ export fn patchFromText(text: [*c]const u8, out_patches: *[*c]Patch, out_patches
         return -1;
     };
     out_patches.* = o_patches.ptr;
-    out_patches_len.* = @intCast(o_patches.len);
-    return 0;
+    return @intCast(o_patches.len);
 }
 
 export fn patchObjToString(p: Patch) callconv(.c) [*c]const u8 {
