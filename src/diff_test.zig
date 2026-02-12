@@ -1206,7 +1206,7 @@ test "to from delta" {
         .{ .text = "", .delta = "+%c3%xy", .expected_error = DiffError.DeltaContainsInvalidUTF8, .expected_diffs = null },
         .{ .text = "", .delta = "+%c3xy", .expected_error = DiffError.DeltaContainsInvalidUTF8, .expected_diffs = null },
         .{ .text = "", .delta = "a", .expected_error = DiffError.DeltaContainsIlligalOperation, .expected_diffs = null },
-        .{ .text = "", .delta = "-", .expected_error = std.fmt.ParseIntError.InvalidCharacter, .expected_diffs = null },
+        .{ .text = "", .delta = "-", .expected_error = DiffError.DeltaBadNumber, .expected_diffs = null },
         .{ .text = "", .delta = "--1", .expected_error = DiffError.DeltaContainsNegetiveNumber, .expected_diffs = null },
         .{ .text = "", .delta = "", .expected_error = null, .expected_diffs = &.{} },
         .{ .text = text1, .delta = delta1, .expected_error = null, .expected_diffs = diffs1 },
