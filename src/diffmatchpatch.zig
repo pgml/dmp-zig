@@ -16,33 +16,41 @@ pub const PatchError = patch.Error;
 pub const DiffError = diff.Error;
 
 pub const Diff = diff.Diff;
+pub const deinitDiffList = diff.deinitDiffList;
 pub const diff_max_duration = diff.diff_max_duration;
 
 pub const PatchList = patch.PatchList;
 // pub const PatchDiffsArrayList = patch.PatchDiffsArrayList;
 pub const Patch = patch.Patch;
 
+const default_diff_timeout: f32 = 1.0;
+const default_diff_edit_cost: u16 = 4;
+const default_match_threshold: f32 = 0.5;
+const default_match_distance: u32 = 1000;
+const default_patch_delete_threshold: f32 = 0.5;
+const default_patch_margin: u16 = 4;
+
 ///DiffMatchPatch struct
 ///the container that determins the number of bits in an int
 fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
     return struct {
         ///Number of seconds to map a diff before giving up (0 for infinity).
-        diff_timeout: f32 = 1.0,
+        diff_timeout: f32 = default_diff_timeout,
         ///Cost of an empty edit operation in terms of edit characters.
-        diff_edit_cost: u16 = 4,
+        diff_edit_cost: u16 = default_diff_edit_cost,
         ///At what point is no match declared (0.0 = perfection, 1.0 = very loose).
-        match_threshold: f32 = 0.5,
+        match_threshold: f32 = default_match_threshold,
         ///How far to search for a match (0 = exact location, 1000+ = broad match).
         ///A match this many characters away from the expected location will add
         ///1.0 to the score (0.0 is a perfect match).
-        match_distance: u32 = 1000,
+        match_distance: u32 = default_match_distance,
         ///When deleting a large block of text (over ~64 characters), how close
         ///do the contents have to be to match the expected contents. (0.0 =
         ///perfection, 1.0 = very loose).  Note that Match_Threshold controls
         ///how closely the end points of a delete need to match.
-        patch_delete_threshold: f32 = 0.5,
+        patch_delete_threshold: f32 = default_patch_delete_threshold,
         ///Chunk size for context length.
-        patch_margin: u16 = 4,
+        patch_margin: u16 = default_patch_margin,
 
         allocator: std.mem.Allocator,
 
