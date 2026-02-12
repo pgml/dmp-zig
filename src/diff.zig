@@ -39,9 +39,10 @@ pub const Diff = struct {
         };
     }
 
-    pub fn deinit(self: *Diff, allocator: std.mem.Allocator) void {
+    pub fn deinit(self: *const Diff, allocator: std.mem.Allocator) void {
         allocator.free(self.text);
-        self.* = undefined;
+        var selfNonConst = @constCast(self);
+        selfNonConst = undefined;
     }
 };
 
@@ -675,7 +676,7 @@ pub fn cleanupMerge(allocator: Allocator, diffs: *[]Diff) !void {
 
 ///loc is a location in text1, compute and return the equivalent location in text2.
 ///e.g. "The cat" vs "The big cat", 1->1, 5->8
-pub fn xIndex(diffs: []Diff, loc: usize) usize {
+pub fn xIndex(diffs: []const Diff, loc: usize) usize {
     var chars1: usize = 0;
     var chars2: usize = 0;
     var last_chars1: usize = 0;
@@ -708,13 +709,13 @@ pub fn xIndex(diffs: []Diff, loc: usize) usize {
 }
 
 ///Convert a Diff list into a pretty HTML report.
-pub fn prettyHtml(allocator: Allocator, diffs: []Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+pub fn prettyHtml(allocator: Allocator, diffs: []const Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
     var text = std.Io.Writer.Allocating.init(allocator);
     defer text.deinit();
     try prettyHtmlWriter(&text.writer, diffs);
     return text.toOwnedSliceSentinel(0);
 }
-pub fn prettyHtmlWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+pub fn prettyHtmlWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
     for (diffs) |diff|
         switch (diff.operation) {
             .equal => {
@@ -751,13 +752,13 @@ fn writeHtmlSanitized(writer: *std.Io.Writer, text: []const u8) std.Io.Writer.Er
 }
 
 ///Converts a []Diff into a colored text report.
-pub fn prettyText(allocator: Allocator, diffs: []Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+pub fn prettyText(allocator: Allocator, diffs: []const Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
     var text = std.Io.Writer.Allocating.init(allocator);
     defer text.deinit();
     try prettyTextWriter(&text.writer, diffs);
     return text.toOwnedSliceSentinel(0);
 }
-pub fn prettyTextWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+pub fn prettyTextWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
     for (diffs) |diff|
         switch (diff.operation) {
             .equal => try writer.writeAll(diff.text),
@@ -767,7 +768,7 @@ pub fn prettyTextWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Err
 }
 
 ///Compute and return the source text (all equalities and deletions).
-pub fn text1(allocator: Allocator, diffs: []Diff) Allocator.Error![:0]const u8 {
+pub fn text1(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
     var len: usize = 0;
     for (diffs) |diff| if (diff.operation != .insert) {
         len += diff.text.len;
@@ -787,7 +788,7 @@ pub fn text1(allocator: Allocator, diffs: []Diff) Allocator.Error![:0]const u8 {
 }
 
 ///Compute and return the destination text (all equalities and insertions).
-pub fn text2(allocator: Allocator, diffs: []Diff) Allocator.Error![:0]const u8 {
+pub fn text2(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
     var len: usize = 0;
     for (diffs) |diff| if (diff.operation != .delete) {
         len += diff.text.len;
@@ -807,7 +808,7 @@ pub fn text2(allocator: Allocator, diffs: []Diff) Allocator.Error![:0]const u8 {
 }
 
 ///Compute the Levenshtein distance; the number of inserted, deleted or substituted characters.
-pub fn levenshtein(diffs: []Diff) usize {
+pub fn levenshtein(diffs: []const Diff) usize {
     var levenshtein_d: usize = 0;
     var insertions: usize = 0;
     var deletions: usize = 0;
@@ -833,13 +834,13 @@ pub fn levenshtein(diffs: []Diff) usize {
 ///required to transform text1 into text2.
 ///E.g. =3\t-2\t+ing  -> Keep 3 chars, delete 2 chars, insert 'ing'.
 ///Operations are tab-separated.  Inserted text is escaped using %xx notation.
-pub fn toDelta(allocator: Allocator, diffs: []Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+pub fn toDelta(allocator: Allocator, diffs: []const Diff) (Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
     var text = std.Io.Writer.Allocating.init(allocator);
     defer text.deinit();
     try toDeltaWriter(&text.writer, diffs);
     return text.toOwnedSliceSentinel(0);
 }
-pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
     for (diffs, 1..) |diff, i| {
         std.debug.assert(std.unicode.utf8ValidateSlice(diff.text));
         switch (diff.operation) {

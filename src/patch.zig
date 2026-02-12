@@ -166,7 +166,7 @@ pub fn makeStringString(comptime MatchMaxContainer: type, allocator: Allocator, 
 
 ///Compute a list of patches to turn text1 into text2.
 ///text1 will be derived from the provided diffs.
-pub fn makeDiffs(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, diffs: []Diff) !PatchList {
+pub fn makeDiffs(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, diffs: []const Diff) !PatchList {
     const text1 = try diff_funcs.text1(allocator, diffs);
     defer allocator.free(text1);
     return makeStringDiffs(MatchMaxContainer, allocator, patch_margin, text1, diffs);
@@ -175,14 +175,27 @@ pub fn makeDiffs(comptime MatchMaxContainer: type, allocator: Allocator, patch_m
 ///Compute a list of patches to turn text1 into text2.
 ///text2 is ignored, diffs are the delta between text1 and text2.
 ///Depricated, use patchStringDiffs
-pub fn makeStringStringDiffs(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, text1: []const u8, text2: []const u8, diffs: []Diff) !PatchList {
+pub fn makeStringStringDiffs(
+    comptime MatchMaxContainer: type,
+    allocator: Allocator,
+    patch_margin: u16,
+    text1: []const u8,
+    text2: []const u8,
+    diffs: []const Diff,
+) !PatchList {
     _ = text2;
     return makeStringDiffs(MatchMaxContainer, allocator, patch_margin, text1, diffs);
 }
 
 ///Compute a list of patches to turn text1 into text2.
 ///text2 is not provided, diffs are the delta between text1 and text2.
-pub fn makeStringDiffs(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, text1: []const u8, diffs: []Diff) Allocator.Error!PatchList {
+pub fn makeStringDiffs(
+    comptime MatchMaxContainer: type,
+    allocator: Allocator,
+    patch_margin: u16,
+    text1: []const u8,
+    diffs: []const Diff,
+) Allocator.Error!PatchList {
     var patches: std.ArrayList(Patch) = .{};
     defer patches.deinit(allocator);
     if (diffs.len == 0) {
@@ -312,7 +325,17 @@ pub fn deepCopy(allocator: Allocator, patches: PatchList) Allocator.Error!PatchL
 
 ///Merge a set of patches onto the text.  Return a patched text, as well
 ///as an array of true/false values indicating which patches were applied.
-pub fn apply(comptime MatchMaxContainer: type, allocator: Allocator, diff_timeout: f32, match_distance: u32, match_threshold: f32, patch_margin: u16, patch_delete_threshold: f32, patches: PatchList, text: []const u8) (match_funcs.MatchError || Allocator.Error || std.Io.Writer.Error || error{InvalidUtf8})!struct { []const u8, []bool } {
+pub fn apply(
+    comptime MatchMaxContainer: type,
+    allocator: Allocator,
+    diff_timeout: f32,
+    match_distance: u32,
+    match_threshold: f32,
+    patch_margin: u16,
+    patch_delete_threshold: f32,
+    patches: PatchList,
+    text: []const u8,
+) (match_funcs.MatchError || Allocator.Error || std.Io.Writer.Error || error{InvalidUtf8})!struct { []const u8, []const bool } {
     const match_max_bits = @bitSizeOf(MatchMaxContainer);
 
     if (patches.items.len == 0) {

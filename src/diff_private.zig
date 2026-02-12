@@ -46,11 +46,12 @@ pub const LineArray = struct {
         for (slice) |item| try s.append(item);
         return s;
     }
-    pub fn deinit(self: *S) void {
+    pub fn deinit(self: *const S) void {
         for (self.array_list.items) |item| self.allocator.free(item);
         self.array_list.deinit(self.allocator);
         self.allocator.destroy(self.array_list);
-        self.* = undefined;
+        var selfNonConst = @constCast(self);
+        selfNonConst = undefined;
     }
     pub fn append(self: S, text: []const u8) Allocator.Error!void {
         const text_copy = try self.allocator.alloc(u8, text.len);
@@ -241,7 +242,7 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
         }
 
         // Convert the diff back to original text.
-        try charsToLinesLineArray(allocator, &diffs, linearray);
+        try charsToLinesLineArray(allocator, diffs, linearray);
         // Eliminate freak matches (e.g. blank lines)
         try diff_funcs.cleanupSemantic(allocator, &diffs);
     }
@@ -539,15 +540,15 @@ pub fn linesToCharsMunge(allocator: Allocator, text_ref: *[]u8, line_array: *Lin
     }
     text_ref.* = text;
 }
-pub fn charsToLinesLineArray(allocator: Allocator, diffs: *[]Diff, line_array: LineArray) Allocator.Error!void {
+pub fn charsToLinesLineArray(allocator: Allocator, diffs: []Diff, line_array: LineArray) Allocator.Error!void {
     return charsToLines(allocator, diffs, line_array.items.*);
 }
 
 ///Rehydrate the text in a diff from a string of line hashes to real lines of text.
-pub fn charsToLines(allocator: Allocator, diffs: *[]Diff, line_array: [][]const u8) Allocator.Error!void {
+pub fn charsToLines(allocator: Allocator, diffs: []Diff, line_array: [][]const u8) Allocator.Error!void {
     var text: std.ArrayList(u21) = .{};
     defer text.deinit(allocator);
-    for (diffs.*) |*diff| {
+    for (diffs) |*diff| {
         text.clearRetainingCapacity();
         try text.ensureTotalCapacity(allocator, diff.text.len); // will most likely be shorter but this is the max needed to hold it
         var len: usize = 0;

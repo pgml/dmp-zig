@@ -97,36 +97,36 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///loc is a location in text1, compute and return the equivalent location in text2.
         ///e.g. "The cat" vs "The big cat", 1->1, 5->8
-        pub inline fn diffXIndex(self: Self, diffs: []Diff, loc: usize) usize {
+        pub inline fn diffXIndex(self: Self, diffs: []const Diff, loc: usize) usize {
             _ = self;
             return diff.xIndex(diffs, loc);
         }
         ///Convert a Diff list into a pretty HTML report.
-        pub inline fn diffPrettyHtml(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffPrettyHtml(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.prettyHtml(self.allocator, diffs);
         }
-        pub inline fn diffPrettyHtmlWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+        pub inline fn diffPrettyHtmlWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.prettyHtmlWriter(writer, diffs);
         }
         ///Converts a []Diff into a colored text report.
-        pub inline fn diffPrettyText(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffPrettyText(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.prettyText(self.allocator, diffs);
         }
-        pub inline fn diffPrettyTextWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+        pub inline fn diffPrettyTextWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.prettyTextWriter(writer, diffs);
         }
         ///Compute and return the source text (all equalities and deletions).
-        pub inline fn diffText1(self: Self, diffs: []Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffText1(self: Self, diffs: []const Diff) std.mem.Allocator.Error![:0]const u8 {
             return diff.text1(self.allocator, diffs);
         }
         ///Compute and return the destination text (all equalities and insertions).
-        pub inline fn diffText2(self: Self, diffs: []Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffText2(self: Self, diffs: []const Diff) std.mem.Allocator.Error![:0]const u8 {
             return diff.text2(self.allocator, diffs);
         }
         ///Compute the Levenshtein distance; the number of inserted, deleted or substituted characters.
-        pub fn diffLevenshtein(self: Self, diffs: []Diff) usize {
+        pub fn diffLevenshtein(self: Self, diffs: []const Diff) usize {
             _ = self;
             return diff.levenshtein(diffs);
         }
@@ -134,10 +134,10 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         ///required to transform text1 into text2.
         ///E.g. =3\t-2\t+ing  -> Keep 3 chars, delete 2 chars, insert 'ing'.
         ///Operations are tab-separated.  Inserted text is escaped using %xx notation.
-        pub inline fn diffToDelta(self: Self, diffs: []Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffToDelta(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
             return diff.toDelta(self.allocator, diffs);
         }
-        pub inline fn diffToDeltaWriter(self: Self, writer: *std.Io.Writer, diffs: []Diff) std.Io.Writer.Error!void {
+        pub inline fn diffToDeltaWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
             _ = self;
             return diff.toDeltaWriter(writer, diffs);
         }
@@ -175,18 +175,18 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///Compute a list of patches to turn text1 into text2.
         ///text1 will be derived from the provided diffs.
-        pub inline fn patchMakeDiffs(self: Self, diffs: []Diff) std.mem.Allocator.Error!PatchList {
+        pub inline fn patchMakeDiffs(self: Self, diffs: []const Diff) std.mem.Allocator.Error!PatchList {
             return patch.makeDiffs(MatchMaxContainer, self.allocator, self.patch_margin, diffs);
         }
         ///Compute a list of patches to turn text1 into text2.
         ///text2 is ignored, diffs are the delta between text1 and text2.
         ///Depricated, use patchStringDiffs
-        pub inline fn patchMakeStringStringDiffs(self: Self, text1: []const u8, text2: []const u8, diffs: []Diff) std.mem.Allocator.Error!PatchList {
+        pub inline fn patchMakeStringStringDiffs(self: Self, text1: []const u8, text2: []const u8, diffs: []const Diff) std.mem.Allocator.Error!PatchList {
             return patch.makeStringStringDiffs(MatchMaxContainer, self.allocator, self.patch_margin, text1, text2, diffs);
         }
         ///Compute a list of patches to turn text1 into text2.
         ///text2 is not provided, diffs are the delta between text1 and text2.
-        pub inline fn patchMakeStringDiffs(self: Self, text1: []const u8, diffs: []Diff) std.mem.Allocator.Error!PatchList {
+        pub inline fn patchMakeStringDiffs(self: Self, text1: []const u8, diffs: []const Diff) std.mem.Allocator.Error!PatchList {
             return patch.makeStringDiffs(MatchMaxContainer, self.allocator, self.patch_margin, text1, diffs);
         }
         ///Given an array of patches, return another array that is identical.
@@ -195,7 +195,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///Merge a set of patches onto the text.  Return a patched text, as well
         ///as an array of true/false values indicating which patches were applied.
-        pub inline fn patchApply(self: Self, patches: PatchList, text: []const u8) !struct { []const u8, []bool } {
+        pub inline fn patchApply(self: Self, patches: PatchList, text: []const u8) !struct { []const u8, []const bool } {
             return patch.apply(MatchMaxContainer, self.allocator, self.diff_timeout, self.match_distance, self.match_threshold, self.patch_margin, self.patch_delete_threshold, patches, text);
         }
         ///Add some padding on text start and end so that edges can match something.
