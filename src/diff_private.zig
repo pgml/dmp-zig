@@ -3,7 +3,6 @@ const utils = @import("utils.zig");
 const diff_funcs = @import("diff.zig");
 
 const Diff = @import("diff.zig").Diff;
-const DiffOperation = @import("diff.zig").Operation;
 
 const Allocator = std.mem.Allocator;
 
@@ -174,7 +173,7 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
     const short_text = if (text1_longer) text2 else text1;
     if (std.mem.indexOf(u8, long_text, short_text)) |idx| {
         // Shorter text is inside the longer text (speedup).
-        const op = if (text1_longer) DiffOperation.delete else DiffOperation.insert;
+        const op = if (text1_longer) Diff.Operation.delete else Diff.Operation.insert;
         try diffs.append(allocator, try Diff.fromSlice(allocator, long_text[0..idx], op));
         try diffs.append(allocator, try Diff.fromSlice(allocator, short_text, .equal));
         try diffs.append(allocator, try Diff.fromSlice(allocator, long_text[idx + short_text.len ..], op));

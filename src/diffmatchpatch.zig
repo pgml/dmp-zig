@@ -15,7 +15,6 @@ pub const MatchError = match.MatchError;
 pub const PatchError = patch.Error;
 pub const DiffError = diff.Error;
 
-pub const DiffOperation = diff.Operation;
 pub const Diff = diff.Diff;
 pub const diff_max_duration = diff.diff_max_duration;
 

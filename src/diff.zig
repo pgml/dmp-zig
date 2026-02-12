@@ -23,17 +23,17 @@ pub const Error = error{
     DeltaShorterThenSource,
 };
 
-pub const Operation = enum(i2) {
-    delete = -1,
-    equal = 0,
-    insert = 1,
-};
-
 pub const Diff = struct {
+    pub const Operation = enum(i2) {
+        delete = -1,
+        equal = 0,
+        insert = 1,
+    };
+
     operation: Operation,
     text: []u8,
 
-    pub fn fromSlice(allocator: std.mem.Allocator, text: []const u8, operation: Operation) std.mem.Allocator.Error!Diff {
+    pub fn fromSlice(allocator: std.mem.Allocator, text: []const u8, operation: Diff.Operation) std.mem.Allocator.Error!Diff {
         const owned_text = try allocator.alloc(u8, text.len);
         @memcpy(owned_text.ptr, text);
         return .{
@@ -48,6 +48,11 @@ pub const Diff = struct {
         selfNonConst = undefined;
     }
 };
+
+pub fn deinitDiffList(allocator: std.mem.Allocator, diffList: []Diff) void {
+    for (diffList) |e| e.deinit(allocator);
+    allocator.free(diffList);
+}
 
 ///Find the differences between two texts.
 ///Run a faster, slightly less optimal diff.
