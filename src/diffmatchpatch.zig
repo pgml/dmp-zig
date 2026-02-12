@@ -23,12 +23,12 @@ pub const PatchList = patch.PatchList;
 // pub const PatchDiffsArrayList = patch.PatchDiffsArrayList;
 pub const Patch = patch.Patch;
 
-const default_diff_timeout: f32 = 1.0;
-const default_diff_edit_cost: u16 = 4;
-const default_match_threshold: f32 = 0.5;
-const default_match_distance: u32 = 1000;
-const default_patch_delete_threshold: f32 = 0.5;
-const default_patch_margin: u16 = 4;
+pub const default_diff_timeout: f32 = 1.0;
+pub const default_diff_edit_cost: u16 = 4;
+pub const default_match_threshold: f32 = 0.5;
+pub const default_match_distance: u32 = 1000;
+pub const default_patch_delete_threshold: f32 = 0.5;
+pub const default_patch_margin: u16 = 4;
 
 ///DiffMatchPatch struct
 ///the container that determins the number of bits in an int
