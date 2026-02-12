@@ -19,10 +19,11 @@ pub const Error = error{
 pub const PatchList = struct {
     items: []Patch,
     allocator: std.mem.Allocator,
-    pub fn deinit(self: *PatchList) void {
-        for (self.items) |*patch| patch.deinit(self.allocator);
+    pub fn deinit(self: *const PatchList) void {
+        for (self.items) |patch| patch.deinit(self.allocator);
         self.allocator.free(self.items);
-        self.* = undefined;
+        var selfNonConst = @constCast(self);
+        selfNonConst = undefined;
     }
 };
 
@@ -85,12 +86,11 @@ pub const Patch = struct {
         };
     }
 
-    pub fn deinit(self: *Patch, allocator: std.mem.Allocator) void {
-        for (self.diffs) |*diff| {
-            diff.deinit(allocator);
-        }
+    pub fn deinit(self: *const Patch, allocator: std.mem.Allocator) void {
+        for (self.diffs) |diff| diff.deinit(allocator);
         allocator.free(self.diffs);
-        self.* = undefined;
+        var selfNonConst = @constCast(self);
+        selfNonConst = undefined;
     }
 };
 
@@ -155,7 +155,7 @@ pub fn addContext(comptime MatchMaxContainer: type, allocator: Allocator, patch_
 pub fn makeStringString(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, diff_edit_cost: u16, diff_timeout: f32, text1: []const u8, text2: []const u8) error{ OutOfMemory, InvalidUtf8 }!PatchList {
     var diffs = try diff_funcs.mainStringStringBool(allocator, diff_timeout, text1, text2, true);
     defer allocator.free(diffs);
-    errdefer for (diffs) |*diff| diff.deinit(allocator);
+    errdefer for (diffs) |diff| diff.deinit(allocator);
     if (diffs.len > 2) {
         try diff_funcs.cleanupSemantic(allocator, &diffs);
         try diff_funcs.cleanupEfficiency(allocator, diff_edit_cost, &diffs);
@@ -422,7 +422,7 @@ pub fn apply(
                 // Imperfect match.  Run a diff to get a framework of equivalent indices.
                 var diffs = try diff_funcs.mainStringStringBool(allocator, diff_timeout, text1, text2, false);
                 defer allocator.free(diffs);
-                defer for (diffs) |*diff| diff.deinit(allocator);
+                defer for (diffs) |diff| diff.deinit(allocator);
 
                 if (text1.len > match_max_bits and
                     @as(f64, @floatFromInt(diff_funcs.levenshtein(diffs))) / @as(f64, @floatFromInt(text1.len)) > patch_delete_threshold)
@@ -568,9 +568,7 @@ pub fn splitMax(comptime MatchMaxContainer: type, allocator: Allocator, patch_ma
         // Remove the big old patch.
         _ = patchlist.orderedRemove(x.?);
         defer {
-            for (big_patch.diffs[big_diffs_ptr..]) |*diff| {
-                diff.deinit(allocator);
-            }
+            for (big_patch.diffs[big_diffs_ptr..]) |diff| diff.deinit(allocator);
             allocator.free(big_patch.diffs);
         }
 
@@ -746,7 +744,7 @@ pub fn toText(allocator: Allocator, patches: PatchList) ![:0]const u8 {
 pub fn fromText(allocator: Allocator, textline: []const u8) (Error || Allocator.Error)!PatchList {
     var patches: std.ArrayList(Patch) = .{};
     defer patches.deinit(allocator);
-    errdefer for (patches.items) |*patch| patch.deinit(allocator);
+    errdefer for (patches.items) |patch| patch.deinit(allocator);
 
     if (textline.len == 0) {
         return .{ .items = try patches.toOwnedSlice(allocator), .allocator = allocator };

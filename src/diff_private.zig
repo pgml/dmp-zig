@@ -41,7 +41,7 @@ pub const LineArray = struct {
             .allocator = allocator,
         };
     }
-    pub fn fromSlice(allocator: Allocator, slice: [][]const u8) !S {
+    pub fn fromSlice(allocator: Allocator, slice: []const []const u8) !S {
         var s = try S.init(allocator);
         for (slice) |item| try s.append(item);
         return s;
@@ -79,7 +79,7 @@ pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text
 fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64, timer: *Timer) Allocator.Error![]Diff {
     var diffs: std.ArrayList(Diff) = .{};
     defer diffs.deinit(allocator);
-    errdefer for (diffs.items) |*diff| diff.deinit(allocator);
+    errdefer for (diffs.items) |diff| diff.deinit(allocator);
 
     std.debug.assert(std.unicode.utf8ValidateSlice(text1));
     std.debug.assert(std.unicode.utf8ValidateSlice(text2));
@@ -120,7 +120,7 @@ fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, tex
             else => return @as(Allocator.Error, @errorCast(e)),
         };
         defer allocator.free(computed_diffs);
-        errdefer for (computed_diffs) |*diff| diff.deinit(allocator);
+        errdefer for (computed_diffs) |diff| diff.deinit(allocator);
         try diffs.appendSlice(allocator, computed_diffs);
     }
 
@@ -155,7 +155,7 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
 
     var diffs: std.ArrayList(Diff) = .{};
     defer diffs.deinit(allocator);
-    errdefer for (diffs.items) |*diff| diff.deinit(allocator);
+    errdefer for (diffs.items) |diff| diff.deinit(allocator);
 
     if (text1.len == 0) {
         // Just add some text (speedup).
@@ -237,7 +237,7 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
 
         diffs = try mainStringStringBoolTimeoutTimer(allocator, diff_timeout, t1, t2, false, ns_time_limit, timer);
         errdefer {
-            for (diffs) |*diff| diff.deinit(allocator);
+            for (diffs) |diff| diff.deinit(allocator);
             allocator.free(diffs);
         }
 
@@ -251,7 +251,7 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
     // Add a dummy entry at the the end.
     var diff_list = std.ArrayList(Diff).fromOwnedSlice(diffs);
     defer diff_list.deinit(allocator);
-    errdefer for (diff_list.items) |*diff| diff.deinit(allocator);
+    errdefer for (diff_list.items) |diff| diff.deinit(allocator);
     try diff_list.append(allocator, try Diff.fromSlice(allocator, "", .equal));
 
     var pointer: usize = 0;
@@ -281,13 +281,13 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
                     const del_idx = pointer - count_delete - count_insert;
                     const del_len = count_delete + count_insert;
 
-                    for (diff_list.items[del_idx .. del_idx + del_len]) |*d| d.deinit(allocator);
+                    for (diff_list.items[del_idx .. del_idx + del_len]) |d| d.deinit(allocator);
                     try diff_list.replaceRange(allocator, del_idx, del_len, &.{});
                     pointer = del_idx;
 
                     const a = try mainStringStringBoolTimeoutTimer(allocator, diff_timeout, text_delete.items, text_insert.items, false, ns_time_limit, timer);
                     defer allocator.free(a);
-                    errdefer for (a) |*d| d.deinit(allocator);
+                    errdefer for (a) |d| d.deinit(allocator);
 
                     try diff_list.insertSlice(allocator, pointer, a);
                     pointer += a.len;
@@ -471,11 +471,11 @@ fn bisectSplitTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, 
 
     var diffs1 = try mainStringStringBoolTimeoutTimer(allocator, diff_timeout, text1a, text2a, false, ns_time_limit, timer);
     errdefer allocator.free(diffs1);
-    errdefer for (diffs1) |*diff| diff.deinit(allocator);
+    errdefer for (diffs1) |diff| diff.deinit(allocator);
 
     const diffs2 = try mainStringStringBoolTimeoutTimer(allocator, diff_timeout, text1b, text2b, false, ns_time_limit, timer);
     defer allocator.free(diffs2);
-    errdefer for (diffs2) |*diff| diff.deinit(allocator);
+    errdefer for (diffs2) |diff| diff.deinit(allocator);
 
     const old_len = try utils.resize(Diff, allocator, &diffs1, diffs1.len + diffs2.len);
     @memcpy(diffs1.ptr[old_len..], diffs2);

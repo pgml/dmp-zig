@@ -117,7 +117,7 @@ test "patch make and patch to text" {
             switch (test_case.input3) {
                 .diffs => |diffs| {
                     defer testing.allocator.free(diffs);
-                    errdefer for (diffs) |*diff| diff.deinit(testing.allocator);
+                    errdefer for (diffs) |diff| diff.deinit(testing.allocator);
                     break :blk try dmp.patchMakeStringStringDiffs(test_case.input1.text, test_case.input2.text, diffs);
                 },
                 .text => unreachable,
@@ -126,7 +126,7 @@ test "patch make and patch to text" {
             switch (test_case.input2) {
                 .diffs => |diffs| {
                     defer testing.allocator.free(diffs);
-                    errdefer for (diffs) |*diff| diff.deinit(testing.allocator);
+                    errdefer for (diffs) |diff| diff.deinit(testing.allocator);
                     break :blk try dmp.patchMakeStringDiffs(test_case.input1.text, diffs);
                 },
                 .text => |text| break :blk try dmp.patchMakeStringString(test_case.input1.text, text),
@@ -135,7 +135,7 @@ test "patch make and patch to text" {
             switch (test_case.input1) {
                 .diffs => |diffs| {
                     defer testing.allocator.free(diffs);
-                    errdefer for (diffs) |*diff| diff.deinit(testing.allocator);
+                    errdefer for (diffs) |diff| diff.deinit(testing.allocator);
                     break :blk try dmp.patchMakeDiffs(diffs);
                 },
                 .text => unreachable,
@@ -159,7 +159,7 @@ test "patch make and patch to text" {
     const diffs = try dmp.diffMainStringStringBool(text1, text2, true);
     defer testing.allocator.free(diffs);
     {
-        errdefer for (diffs) |*diff| diff.deinit(testing.allocator);
+        errdefer for (diffs) |diff| diff.deinit(testing.allocator);
 
         const actual_text1 = try dmp.diffText1(diffs);
         defer testing.allocator.free(actual_text1);

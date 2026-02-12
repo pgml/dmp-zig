@@ -17,7 +17,7 @@ pub fn main() !void {
 
     const diffs = try dmp.diffMainStringString(text1, text2);
     defer allocator.free(diffs);
-    defer for (diffs) |*d| d.deinit(allocator);
+    defer for (diffs) |d| d.deinit(allocator);
 
     const diffString = try dmp.diffPrettyText(diffs);
     defer allocator.free(diffString);

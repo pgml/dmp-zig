@@ -863,7 +863,7 @@ pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.
 pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.mem.Allocator.Error)![]Diff {
     var diffs: std.ArrayList(Diff) = .{};
     defer diffs.deinit(allocator);
-    errdefer for (diffs.items) |*diff| diff.deinit(allocator);
+    errdefer for (diffs.items) |diff| diff.deinit(allocator);
 
     var pointer: usize = 0;
     var tokens = std.mem.splitScalar(u8, delta, '\t');
