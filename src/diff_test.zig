@@ -1166,7 +1166,7 @@ test "to from delta" {
         try Diff.fromSlice(testing.allocator, " lazy", .equal),
         try Diff.fromSlice(testing.allocator, "old dog", .insert),
     };
-    // errdefer for (diffs1) |*diff| diff.deinit(testing.allocator);
+    errdefer for (diffs1) |*diff| @constCast(diff).deinit(testing.allocator);
 
     const text1 = try dmp.diffText1(@constCast(diffs1));
     defer testing.allocator.free(text1);
@@ -1181,7 +1181,7 @@ test "to from delta" {
         try Diff.fromSlice(testing.allocator, "\u{0681} \x01 \n ^", .delete),
         try Diff.fromSlice(testing.allocator, "\u{0682} \x02 \\ |", .insert),
     };
-    // errdefer for (diffs2) |*diff| diff.deinit(testing.allocator);
+    errdefer for (diffs2) |*diff| @constCast(diff).deinit(testing.allocator);
 
     const text2 = try dmp.diffText1(@constCast(diffs2));
     defer testing.allocator.free(text2);
@@ -1194,7 +1194,7 @@ test "to from delta" {
     const diffs3: []const Diff = &.{
         try Diff.fromSlice(testing.allocator, "ABCDEFGHIJKLMNOPQRSTUVWXYZ abcdefghijklmnopqrstuvwxyz 0123456789 - _ . ! ~ * ' ( ) ; / ? : @ & = + $ , # ", .insert),
     };
-    // errdefer for (diffs3) |*diff| diff.deinit(testing.allocator);
+    errdefer for (diffs3) |*diff| @constCast(diff).deinit(testing.allocator);
 
     const delta3 = try dmp.diffToDelta(@constCast(diffs3));
     defer testing.allocator.free(delta3);
