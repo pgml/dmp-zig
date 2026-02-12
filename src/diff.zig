@@ -49,9 +49,9 @@ pub const Diff = struct {
     }
 };
 
-pub fn deinitDiffList(allocator: std.mem.Allocator, diffList: []Diff) void {
-    for (diffList) |e| e.deinit(allocator);
-    allocator.free(diffList);
+pub fn deinitDiffList(allocator: std.mem.Allocator, diffs: []const Diff) void {
+    for (diffs) |e| e.deinit(allocator);
+    allocator.free(diffs);
 }
 
 ///Find the differences between two texts.
