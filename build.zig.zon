@@ -1,7 +1,7 @@
 .{
     .name = .diffmatchpatch,
     .fingerprint = 0x8f4903f957fb546d,
-    .version = "1.2.1",
+    .version = "1.2.2",
     .minimum_zig_version = "0.15.2",
     .dependencies = .{},
     .paths = .{

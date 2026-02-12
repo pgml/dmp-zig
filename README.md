@@ -27,7 +27,7 @@ dmp-zig can be used as a zig library in other zig projects
 First add it to your `build.zig.zon` file 
 you can use this command to add the URL and hash automatically
 ```sh 
-zig fetch --save https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.1.tar.gz
+zig fetch --save https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.2.tar.gz
 ```
 
 or you can add 
