@@ -5,6 +5,9 @@ comptime {
     _ = @import("diff_test.zig");
 }
 
+// TODO: user more of array list instead of going back and forth
+// TODO: make a deinit function for list
+
 const Allocator = std.mem.Allocator;
 
 const DiffPrivate = @import("diff_private.zig");
