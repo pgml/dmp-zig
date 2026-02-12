@@ -775,44 +775,31 @@ pub fn prettyTextWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writ
         };
 }
 
+pub fn getText(allocator: Allocator, diffs: []const Diff, original: bool) Allocator.Error![:0]const u8 {
+    const skipOp: Diff.Operation = if (original) .insert else .delete;
+    var len: usize = 0;
+    for (diffs) |diff| {
+        if (diff.operation == skipOp) continue;
+        len += diff.text.len;
+    }
+    const text = try allocator.allocSentinel(u8, len, 0);
+    var writer = std.Io.Writer.fixed(text);
+
+    for (diffs) |diff| {
+        if (diff.operation == skipOp) continue;
+        writer.writeAll(diff.text) catch unreachable;
+    }
+    return text;
+}
+
 ///Compute and return the source text (all equalities and deletions).
 pub fn text1(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
-    var len: usize = 0;
-    for (diffs) |diff| if (diff.operation != .insert) {
-        len += diff.text.len;
-    };
-
-    var string = try allocator.allocSentinel(u8, len, 0);
-    errdefer allocator.free(string);
-
-    var ptr: usize = 0;
-    for (diffs) |diff| if (diff.operation != .insert) {
-        @memcpy(string[ptr .. ptr + diff.text.len], diff.text);
-        ptr += diff.text.len;
-    };
-    std.debug.assert(ptr == len and len == string.len);
-
-    return string;
+    return getText(allocator, diffs, true);
 }
 
 ///Compute and return the destination text (all equalities and insertions).
 pub fn text2(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
-    var len: usize = 0;
-    for (diffs) |diff| if (diff.operation != .delete) {
-        len += diff.text.len;
-    };
-
-    var string = try allocator.allocSentinel(u8, len, 0);
-    errdefer allocator.free(string);
-
-    var ptr: usize = 0;
-    for (diffs) |diff| if (diff.operation != .delete) {
-        @memcpy(string[ptr .. ptr + diff.text.len], diff.text);
-        ptr += diff.text.len;
-    };
-    std.debug.assert(ptr == len and len == string.len);
-
-    return string;
+    return getText(allocator, diffs, false);
 }
 
 ///Compute the Levenshtein distance; the number of inserted, deleted or substituted characters.
