@@ -21,7 +21,7 @@ for (patches.items) |patch| std.debug.print("{any}\n", .{patch});
 
 ## Uses
 dmp-zig can be used as a zig library in other zig projects
-but can also be compiled into freestanding wasm, a static, or a shared library for use with other languages
+<!-- but can also be compiled into freestanding wasm, a static, or a shared library for use with other languages -->
 
 ### Using in zig
 First add it to your `build.zig.zon` file 
@@ -49,10 +49,7 @@ exe.root_module.addImport("diffmatchpatch", dmp.module("diffmatchpatch"));
 ```
 
 ### Using with other languages
-you can use `zig build` to build a static library.
-And if you do `zig build -Ddynamic` it will build a dynamic library
-
-You can also build for WASM by doing `zig build -Dtarget=wasm32-freestanding`
+Removed for now, will make it again in a what that makes more sense
 
 ## Notes:
 The API follows the [Common API](https://github.com/google/diff-match-patch/wiki/API), but there might be differences
