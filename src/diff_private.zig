@@ -13,7 +13,7 @@ else
     struct {
         start_time: u64,
 
-        extern fn readTimeNs() callconv(.c) c_long;
+        extern fn readTimeNs() callconv(.c) c_ulonglong;
         pub fn start() !Timer {
             return .{
                 .start_time = @intCast(readTimeNs()),
