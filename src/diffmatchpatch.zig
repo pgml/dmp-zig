@@ -1,5 +1,8 @@
 const std = @import("std");
 const utils = @import("utils.zig");
+const options = @import("options");
+
+const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
 
 pub const diff = @import("diff.zig");
 pub const match = @import("match.zig");
@@ -109,7 +112,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return diff.xIndex(diffs, loc);
         }
         ///Convert a Diff list into a pretty HTML report.
-        pub inline fn diffPrettyHtml(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffPrettyHtml(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)!StrType {
             return diff.prettyHtml(self.allocator, diffs);
         }
         pub inline fn diffPrettyHtmlWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
@@ -117,7 +120,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return diff.prettyHtmlWriter(writer, diffs);
         }
         ///Converts a []Diff into a colored text report.
-        pub inline fn diffPrettyText(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffPrettyText(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)!StrType {
             return diff.prettyText(self.allocator, diffs);
         }
         pub inline fn diffPrettyTextWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
@@ -125,11 +128,11 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return diff.prettyTextWriter(writer, diffs);
         }
         ///Compute and return the source text (all equalities and deletions).
-        pub inline fn diffText1(self: Self, diffs: []const Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffText1(self: Self, diffs: []const Diff) std.mem.Allocator.Error!StrType {
             return diff.text1(self.allocator, diffs);
         }
         ///Compute and return the destination text (all equalities and insertions).
-        pub inline fn diffText2(self: Self, diffs: []const Diff) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn diffText2(self: Self, diffs: []const Diff) std.mem.Allocator.Error!StrType {
             return diff.text2(self.allocator, diffs);
         }
         ///Compute the Levenshtein distance; the number of inserted, deleted or substituted characters.
@@ -141,7 +144,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         ///required to transform text1 into text2.
         ///E.g. =3\t-2\t+ing  -> Keep 3 chars, delete 2 chars, insert 'ing'.
         ///Operations are tab-separated.  Inserted text is escaped using %xx notation.
-        pub inline fn diffToDelta(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn diffToDelta(self: Self, diffs: []const Diff) (std.mem.Allocator.Error || std.Io.Writer.Error)!StrType {
             return diff.toDelta(self.allocator, diffs);
         }
         pub inline fn diffToDeltaWriter(self: Self, writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.Error!void {
@@ -207,7 +210,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///Add some padding on text start and end so that edges can match something.
         ///Intended to be called only from within `patchApply`.
-        pub inline fn patchAddPadding(self: Self, patches: *PatchList) std.mem.Allocator.Error![:0]const u8 {
+        pub inline fn patchAddPadding(self: Self, patches: *PatchList) std.mem.Allocator.Error!StrType {
             return patch.addPadding(self.allocator, self.patch_margin, patches);
         }
         ///Look through the patches and break up any which are longer than the
@@ -217,7 +220,7 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
             return patch.splitMax(MatchMaxContainer, self.allocator, self.patch_margin, patches);
         }
         ///Take a list of patches and return a textual representation.
-        pub inline fn patchToText(self: Self, patches: PatchList) (std.mem.Allocator.Error || std.Io.Writer.Error)![:0]const u8 {
+        pub inline fn patchToText(self: Self, patches: PatchList) (std.mem.Allocator.Error || std.Io.Writer.Error)!StrType {
             return patch.toText(self.allocator, patches);
         }
         ///Parse a textual representation of patches and return a List of Patch objects.

@@ -1,6 +1,9 @@
 const DMP = @import("diffmatchpatch.zig").DiffMatchPatch;
 const std = @import("std");
 const testing = std.testing;
+const options = @import("options");
+
+const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
 
 const MatchPrivate = @import("match_private.zig");
 
@@ -32,8 +35,8 @@ test "matchBitap" {
     dmp.match_threshold = 0.5;
 
     const TestCase = struct {
-        text: [:0]const u8,
-        pattern: [:0]const u8,
+        text: StrType,
+        pattern: StrType,
         location: usize,
         expect: ?usize,
     };
@@ -107,8 +110,8 @@ test "match main" {
     var dmp = DMP.init(testing.allocator);
 
     const TestCase = struct {
-        text1: [:0]const u8,
-        text2: [:0]const u8,
+        text1: StrType,
+        text2: StrType,
         location: usize,
         expect: ?usize,
     };

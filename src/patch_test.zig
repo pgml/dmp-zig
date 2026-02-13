@@ -1,5 +1,8 @@
 const DMP = @import("diffmatchpatch.zig").DiffMatchPatch;
 const std = @import("std");
+const options = @import("options");
+
+const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
 
 const Diff = @import("diff.zig").Diff;
 const Patch = @import("patch.zig").Patch;
@@ -11,7 +14,7 @@ const testing = std.testing;
 
 test "errors from text" {
     const TestCase = struct {
-        patch: [:0]const u8,
+        patch: StrType,
         expectedPatchError: ?PatchError,
     };
 
@@ -42,7 +45,7 @@ test "errors from text" {
 
 test "from to text" {
     const dmp = DMP.init(testing.allocator);
-    const patch_strs = [_][:0]const u8{
+    const patch_strs = [_]StrType{
         "@@ -21,18 +22,17 @@\n jump\n-s\n+ed\n  over \n-the\n+a\n  laz\n",
         "@@ -1,9 +1,9 @@\n-f\n+F\n oo+fooba\n@@ -7,9 +7,9 @@\n obar\n-,\n+.\n  tes\n",
     };
@@ -58,9 +61,9 @@ test "from to text" {
 
 test "add context" {
     const TestCase = struct {
-        patch: [:0]const u8,
-        text: [:0]const u8,
-        expected: [:0]const u8,
+        patch: StrType,
+        text: StrType,
+        expected: StrType,
     };
 
     const dmp = DMP.init(testing.allocator);
@@ -84,7 +87,7 @@ test "add context" {
 test "patch make and patch to text" {
     const Input = union(enum) {
         diffs: []Diff,
-        text: [:0]const u8,
+        text: StrType,
         none,
     };
 
@@ -92,13 +95,13 @@ test "patch make and patch to text" {
         input1: Input,
         input2: Input,
         input3: Input,
-        expected: [:0]const u8,
+        expected: StrType,
     };
 
     var dmp = DMP.init(testing.allocator);
 
-    var text1: [:0]const u8 = "The quick brown fox jumps over the lazy dog.";
-    var text2: [:0]const u8 = "That quick brown fox jumped over a lazy dog.";
+    var text1: StrType = "The quick brown fox jumps over the lazy dog.";
+    var text2: StrType = "That quick brown fox jumped over a lazy dog.";
 
     const test_cases = [_]TestCase{
         .{ .input1 = .{ .text = "" }, .input2 = .{ .text = "" }, .input3 = .none, .expected = "" },
@@ -180,9 +183,9 @@ test "patch make and patch to text" {
 
 test "split max" {
     const TestCase = struct {
-        text1: [:0]const u8,
-        text2: [:0]const u8,
-        expected: [:0]const u8,
+        text1: StrType,
+        text2: StrType,
+        expected: StrType,
     };
 
     const dmp = DMP.init(testing.allocator);
@@ -206,10 +209,10 @@ test "split max" {
 
 test "add padding" {
     const TestCase = struct {
-        text1: [:0]const u8,
-        text2: [:0]const u8,
-        expected: [:0]const u8,
-        expected_with_padding: [:0]const u8,
+        text1: StrType,
+        text2: StrType,
+        expected: StrType,
+        expected_with_padding: StrType,
     };
 
     const dmp = DMP.init(testing.allocator);
@@ -238,11 +241,11 @@ test "add padding" {
 
 test "patch apply" {
     const TestCase = struct {
-        text1: [:0]const u8,
-        text2: [:0]const u8,
-        text_base: [:0]const u8,
+        text1: StrType,
+        text2: StrType,
+        text_base: StrType,
 
-        expected: [:0]const u8,
+        expected: StrType,
         expected_applies: []const bool,
     };
 
@@ -296,8 +299,8 @@ test "patch format" {
 test "patch long and no free use" {
     var dmp = DMP.init(testing.allocator);
 
-    const str1_src: [:0]const u8 = @embedFile("test-data/loram");
-    const str2_src: [:0]const u8 = @embedFile("test-data/loram2");
+    const str1_src: StrType = @embedFile("test-data/loram");
+    const str2_src: StrType = @embedFile("test-data/loram2");
 
     const str1 = try testing.allocator.alloc(u8, str1_src.len);
     defer testing.allocator.free(str1);

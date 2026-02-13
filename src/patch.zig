@@ -2,6 +2,9 @@ const std = @import("std");
 const diff_funcs = @import("diff.zig");
 const Diff = @import("diff.zig").Diff;
 const match_funcs = @import("match.zig");
+const options = @import("options");
+
+const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
 
 comptime {
     _ = @import("patch_test.zig");
@@ -469,9 +472,12 @@ pub fn apply(
 
 ///Add some padding on text start and end so that edges can match something.
 ///Intended to be called only from within `patchApply`.
-pub fn addPadding(allocator: Allocator, patch_margin: u16, patches: *PatchList) Allocator.Error![:0]const u8 {
+pub fn addPadding(allocator: Allocator, patch_margin: u16, patches: *PatchList) Allocator.Error!StrType {
     const padding_length = patch_margin;
-    const null_padding = try allocator.allocSentinel(u8, padding_length, 0);
+    const null_padding = if (options.nullTerminated)
+        try allocator.allocSentinel(u8, padding_length, 0)
+    else
+        try allocator.alloc(u8, padding_length);
     for (0..padding_length) |i| {
         null_padding[i] = @intCast(i + 1);
     }
@@ -731,13 +737,16 @@ pub fn splitMax(comptime MatchMaxContainer: type, allocator: Allocator, patch_ma
 }
 
 ///Take a list of patches and return a textual representation.
-pub fn toText(allocator: Allocator, patches: PatchList) ![:0]const u8 {
+pub fn toText(allocator: Allocator, patches: PatchList) !StrType {
     var text = std.Io.Writer.Allocating.init(allocator);
     defer text.deinit();
     for (patches.items) |patch| {
         try patch.format(&text.writer);
     }
-    return text.toOwnedSliceSentinel(0);
+    if (options.nullTerminated)
+        return text.toOwnedSliceSentinel(0)
+    else
+        return text.toOwnedSlice();
 }
 
 ///Parse a textual representation of patches and return a List of Patch objects.

@@ -4,8 +4,16 @@ pub fn build(b: *std.Build) void {
     const target = b.standardTargetOptions(.{});
     const optimize = b.standardOptimizeOption(.{});
 
+    const nullTerminate = b.option(bool, "nullTerminate", "Null terminate strings") orelse false;
+
+    const options = b.addOptions();
+    options.addOption(bool, "nullTerminated", nullTerminate);
+
     const mod = b.addModule("diffmatchpatch", .{
         .root_source_file = b.path("src/diffmatchpatch.zig"),
+        .imports = &.{
+            .{ .name = "options", .module = options.createModule() },
+        },
         .target = target,
         .optimize = optimize,
     });
