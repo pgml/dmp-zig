@@ -1,8 +1,7 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const options = @import("options");
-
-const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
+const options = @import("options.zig");
+const StrType = options.StrType;
 
 comptime {
     _ = @import("diff_test.zig");

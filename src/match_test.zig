@@ -1,9 +1,7 @@
 const DMP = @import("diffmatchpatch.zig").DiffMatchPatch;
 const std = @import("std");
 const testing = std.testing;
-const options = @import("options");
-
-const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
+const StrType = @import("options.zig").StrType;
 
 const MatchPrivate = @import("match_private.zig");
 

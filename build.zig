@@ -8,11 +8,16 @@ pub fn build(b: *std.Build) void {
 
     const options = b.addOptions();
     options.addOption(bool, "nullTerminated", nullTerminate);
+    // if (nullTerminate) {
+    //     options.addOption(type, "StrType", [:0]const u8);
+    // } else {
+    //     options.addOption(type, "StrType", []const u8);
+    // }
 
     const mod = b.addModule("diffmatchpatch", .{
         .root_source_file = b.path("src/diffmatchpatch.zig"),
         .imports = &.{
-            .{ .name = "options", .module = options.createModule() },
+            .{ .name = "dmp_options", .module = options.createModule() },
         },
         .target = target,
         .optimize = optimize,

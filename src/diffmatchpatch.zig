@@ -1,8 +1,6 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const options = @import("options");
-
-const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
+const StrType = @import("options.zig").StrType;
 
 pub const diff = @import("diff.zig");
 pub const match = @import("match.zig");
