@@ -13,14 +13,14 @@ else
     struct {
         start_time: u64,
 
-        extern fn readTimeNs() callconv(.c) c_ulonglong;
+        extern "dmp" fn readTimeNs() callconv(.c) u64;
         pub fn start() !Timer {
             return .{
-                .start_time = @intCast(readTimeNs()),
+                .start_time = readTimeNs(),
             };
         }
         pub fn read(self: *Timer) u64 {
-            const time: u64 = @intCast(readTimeNs());
+            const time: u64 = readTimeNs();
             std.debug.assert(time > self.start_time);
             return time - self.start_time;
         }
