@@ -7,6 +7,8 @@ comptime {
 
 // TODO: user more of array list instead of going back and forth
 // TODO: make a deinit function for list
+// TODO: for zig centric implementation, wrap types in enums, to allow defaults and stop from passing wrong type of value
+// TODO: make null terminator optional
 
 const Allocator = std.mem.Allocator;
 
@@ -775,31 +777,37 @@ pub fn prettyTextWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writ
         };
 }
 
-pub fn getText(allocator: Allocator, diffs: []const Diff, original: bool) Allocator.Error![:0]const u8 {
+pub fn getText(allocator: Allocator, diffs: []const Diff, original: bool, comptime nullTerminated: bool) Allocator.Error!if (nullTerminated) [:0]const u8 else []const u8 {
     const skipOp: Diff.Operation = if (original) .insert else .delete;
     var len: usize = 0;
     for (diffs) |diff| {
         if (diff.operation == skipOp) continue;
         len += diff.text.len;
     }
-    const text = try allocator.allocSentinel(u8, len, 0);
+    const text = if (nullTerminated)
+        try allocator.allocSentinel(u8, len, 0)
+    else
+        try allocator.alloc(u8, len, 0);
+
     var writer = std.Io.Writer.fixed(text);
 
     for (diffs) |diff| {
         if (diff.operation == skipOp) continue;
         writer.writeAll(diff.text) catch unreachable;
     }
+    std.debug.assert(writer.end == text.len);
+
     return text;
 }
 
 ///Compute and return the source text (all equalities and deletions).
 pub fn text1(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
-    return getText(allocator, diffs, true);
+    return getText(allocator, diffs, true, true);
 }
 
 ///Compute and return the destination text (all equalities and insertions).
 pub fn text2(allocator: Allocator, diffs: []const Diff) Allocator.Error![:0]const u8 {
-    return getText(allocator, diffs, false);
+    return getText(allocator, diffs, false, true);
 }
 
 ///Compute the Levenshtein distance; the number of inserted, deleted or substituted characters.
