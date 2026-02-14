@@ -1,7 +1,7 @@
 const DMP = @import("diffmatchpatch.zig").DiffMatchPatch;
 const std = @import("std");
 const testing = std.testing;
-const StrType = @import("options.zig").StrType;
+const StrType = @import("options").StrType;
 
 const MatchPrivate = @import("match_private.zig");
 

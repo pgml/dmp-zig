@@ -1,6 +1,6 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const StrType = @import("options.zig").StrType;
+const StrType = @import("options").StrType;
 
 pub const diff = @import("diff.zig");
 pub const match = @import("match.zig");

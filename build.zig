@@ -6,18 +6,19 @@ pub fn build(b: *std.Build) void {
 
     const nullTerminate = b.option(bool, "nullTerminate", "Null terminate strings") orelse false;
 
-    const options = b.addOptions();
-    options.addOption(bool, "nullTerminated", nullTerminate);
-    // if (nullTerminate) {
-    //     options.addOption(type, "StrType", [:0]const u8);
-    // } else {
-    //     options.addOption(type, "StrType", []const u8);
-    // }
+    const options_file = b.addWriteFiles().add("options.zig", b.fmt(
+        \\ pub const nullTerminated: bool = {};
+        \\ pub const StrType: type = {s};
+    , .{
+        nullTerminate,
+        if (nullTerminate) "[:0]const u8" else "[]const u8",
+    }));
+    const options_mod = b.createModule(.{ .root_source_file = options_file });
 
     const mod = b.addModule("diffmatchpatch", .{
         .root_source_file = b.path("src/diffmatchpatch.zig"),
         .imports = &.{
-            .{ .name = "dmp_options", .module = options.createModule() },
+            .{ .name = "options", .module = options_mod },
         },
         .target = target,
         .optimize = optimize,

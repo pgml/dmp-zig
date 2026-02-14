@@ -2,7 +2,7 @@ const std = @import("std");
 const diff_funcs = @import("diff.zig");
 const Diff = @import("diff.zig").Diff;
 const match_funcs = @import("match.zig");
-const options = @import("options.zig");
+const options = @import("options");
 const StrType = options.StrType;
 
 comptime {
