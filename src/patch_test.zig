@@ -1,6 +1,6 @@
 const DMP = @import("diffmatchpatch.zig").DiffMatchPatch;
 const std = @import("std");
-const options = @import("options");
+const options = @import("dmp_options");
 
 const StrType = if (options.nullTerminated) [:0]const u8 else []const u8;
 

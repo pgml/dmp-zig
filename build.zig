@@ -6,7 +6,7 @@ pub fn build(b: *std.Build) void {
 
     const nullTerminate = b.option(bool, "nullTerminate", "Null terminate strings") orelse false;
 
-    const options_file = b.addWriteFiles().add("options.zig", b.fmt(
+    const options_file = b.addWriteFiles().add("dmp_options.zig", b.fmt(
         \\ pub const nullTerminated: bool = {};
         \\ pub const StrType: type = {s};
     , .{
@@ -18,7 +18,7 @@ pub fn build(b: *std.Build) void {
     const mod = b.addModule("diffmatchpatch", .{
         .root_source_file = b.path("src/diffmatchpatch.zig"),
         .imports = &.{
-            .{ .name = "options", .module = options_mod },
+            .{ .name = "dmp_options", .module = options_mod },
         },
         .target = target,
         .optimize = optimize,

@@ -1,6 +1,6 @@
 const std = @import("std");
 const utils = @import("utils.zig");
-const options = @import("options");
+const options = @import("dmp_options");
 const StrType = options.StrType;
 
 comptime {
