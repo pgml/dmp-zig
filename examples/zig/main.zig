@@ -1,10 +1,8 @@
 const std = @import("std");
 const DMP = @import("diffmatchpatch");
 
-pub fn main() !void {
-    var gpa = std.heap.GeneralPurposeAllocator(.{}).init;
-    defer if (gpa.deinit() == .leak) std.debug.print("Leaks!!!!!\n", .{});
-    const allocator = gpa.allocator();
+pub fn main(init: std.process.Init) !void {
+    const allocator = init.gpa;
 
     var dmp = DMP.DiffMatchPatch.init(allocator);
     dmp.match_threshold = 0.6;
@@ -12,10 +10,10 @@ pub fn main() !void {
     const text1 = "There once was a time";
     const text2 = "there was a lime";
 
-    var patches = try dmp.patchMakeStringString(text1, text2);
+    var patches = try dmp.patchMakeStringString(init.io, text1, text2);
     defer patches.deinit();
 
-    const diffs = try dmp.diffMainStringString(text1, text2);
+    const diffs = try dmp.diffMainStringString(init.io, text1, text2);
     defer allocator.free(diffs);
     defer for (diffs) |d| d.deinit(allocator);
 

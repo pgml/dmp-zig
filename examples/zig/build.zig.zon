@@ -2,7 +2,7 @@
     .name = .dmpexample,
     .version = "0.0.0",
     .fingerprint = 0xc97a7ffec4dfb3f9,
-    .minimum_zig_version = "0.15.2",
+    .minimum_zig_version = "0.16.0",
     .dependencies = .{
         .dmp = .{
             .path = "../../",
