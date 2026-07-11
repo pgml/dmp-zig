@@ -19,8 +19,9 @@ const Timer = struct {
         };
     }
     pub fn read(self: *Timer) u64 {
-        const time = self.start_time.untilNow(self.io, .awake);
-        return @intCast(time.toNanoseconds());
+        const time = std.Io.Clock.awake.now(self.io);
+        std.debug.assert(time.nanoseconds > self.start_time.nanoseconds);
+        return @intCast(self.start_time.durationTo(time).toNanoseconds());
     }
 };
 
