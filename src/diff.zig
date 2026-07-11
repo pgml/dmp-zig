@@ -61,19 +61,19 @@ pub fn deinitDiffList(allocator: std.mem.Allocator, diffs: []const Diff) void {
 ///Run a faster, slightly less optimal diff.
 ///This method allows the 'checklines' of `diffMainStringStringBool` to be optional.
 ///Most of the time checklines is wanted, so default to true.
-pub fn mainStringString(allocator: Allocator, diff_timeout: f32, text_a: []const u8, text_b: []const u8) ![]Diff {
-    return mainStringStringBool(allocator, diff_timeout, text_a, text_b, true);
+pub fn mainStringString(io: std.Io, allocator: Allocator, diff_timeout: f32, text_a: []const u8, text_b: []const u8) ![]Diff {
+    return mainStringStringBool(io, allocator, diff_timeout, text_a, text_b, true);
 }
 
 ///Find the differences between two texts.
-pub fn mainStringStringBool(allocator: Allocator, diff_timeout: f32, text_a: []const u8, text_b: []const u8, check_lines: bool) ![]Diff {
+pub fn mainStringStringBool(io: std.Io, allocator: Allocator, diff_timeout: f32, text_a: []const u8, text_b: []const u8, check_lines: bool) ![]Diff {
     var deadline: u64 = undefined;
     if (diff_timeout > 0) {
         deadline = @intFromFloat(diff_timeout * std.time.ns_per_s);
     } else {
         deadline = diff_max_duration;
     }
-    return DiffPrivate.mainStringStringBoolTimeout(allocator, diff_timeout, text_a, text_b, check_lines, deadline);
+    return DiffPrivate.mainStringStringBoolTimeout(io, allocator, diff_timeout, text_a, text_b, check_lines, deadline);
 }
 
 ///Determine the common prefix of two strings.
@@ -293,15 +293,15 @@ pub fn cleanupSemanticLossless(allocator: Allocator, diffs: *[]Diff) !void {
             diff_list.items[pointer + 1].operation == .equal)
         {
             // This is a single edit surrounded by equalities.
-            var equality1: std.ArrayList(u8) = .{};
+            var equality1: std.ArrayList(u8) = .empty;
             defer equality1.deinit(allocator);
             try equality1.appendSlice(allocator, diff_list.items[pointer - 1].text);
 
-            var edit: std.ArrayList(u8) = .{};
+            var edit: std.ArrayList(u8) = .empty;
             defer edit.deinit(allocator);
             try edit.appendSlice(allocator, diff_list.items[pointer].text);
 
-            var equality2: std.ArrayList(u8) = .{};
+            var equality2: std.ArrayList(u8) = .empty;
             defer equality2.deinit(allocator);
             try equality2.appendSlice(allocator, diff_list.items[pointer + 1].text);
 
@@ -524,9 +524,9 @@ pub fn cleanupMerge(allocator: Allocator, diffs: *[]Diff) !void {
     var count_insert: usize = 0;
     var common_length: usize = 0;
 
-    var text_insert: std.ArrayList(u8) = .{};
+    var text_insert: std.ArrayList(u8) = .empty;
     defer text_insert.deinit(allocator);
-    var text_delete: std.ArrayList(u8) = .{};
+    var text_delete: std.ArrayList(u8) = .empty;
     defer text_delete.deinit(allocator);
 
     while (pointer < diff_list.items.len) {
@@ -871,7 +871,7 @@ pub fn toDeltaWriter(writer: *std.Io.Writer, diffs: []const Diff) std.Io.Writer.
 ///Given the original text1, and an encoded string which describes the
 ///operations required to transform text1 into text2, compute the full diff.
 pub fn fromDelta(allocator: Allocator, text_a: []const u8, delta: []const u8) (Error || std.mem.Allocator.Error)![]Diff {
-    var diffs: std.ArrayList(Diff) = .{};
+    var diffs: std.ArrayList(Diff) = .empty;
     defer diffs.deinit(allocator);
     errdefer for (diffs.items) |diff| diff.deinit(allocator);
 

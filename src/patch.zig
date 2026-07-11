@@ -154,8 +154,8 @@ pub fn addContext(comptime MatchMaxContainer: type, allocator: Allocator, patch_
 // patch make parts
 ///Compute a list of patches to turn text1 into text2.
 ///A set of diffs will be computed.
-pub fn makeStringString(comptime MatchMaxContainer: type, allocator: Allocator, patch_margin: u16, diff_edit_cost: u16, diff_timeout: f32, text1: []const u8, text2: []const u8) error{ OutOfMemory, InvalidUtf8 }!PatchList {
-    var diffs = try diff_funcs.mainStringStringBool(allocator, diff_timeout, text1, text2, true);
+pub fn makeStringString(comptime MatchMaxContainer: type, io: std.Io, allocator: Allocator, patch_margin: u16, diff_edit_cost: u16, diff_timeout: f32, text1: []const u8, text2: []const u8) error{ OutOfMemory, InvalidUtf8 }!PatchList {
+    var diffs = try diff_funcs.mainStringStringBool(io, allocator, diff_timeout, text1, text2, true);
     defer allocator.free(diffs);
     errdefer for (diffs) |diff| diff.deinit(allocator);
     if (diffs.len > 2) {
@@ -198,7 +198,7 @@ pub fn makeStringDiffs(
     text1: []const u8,
     diffs: []const Diff,
 ) Allocator.Error!PatchList {
-    var patches: std.ArrayList(Patch) = .{};
+    var patches: std.ArrayList(Patch) = .empty;
     defer patches.deinit(allocator);
     if (diffs.len == 0) {
         return .{ .items = try patches.toOwnedSlice(allocator), .allocator = allocator };
@@ -329,6 +329,7 @@ pub fn deepCopy(allocator: Allocator, patches: PatchList) Allocator.Error!PatchL
 ///as an array of true/false values indicating which patches were applied.
 pub fn apply(
     comptime MatchMaxContainer: type,
+    io: std.Io,
     allocator: Allocator,
     diff_timeout: f32,
     match_distance: u32,
@@ -422,7 +423,7 @@ pub fn apply(
                 try working_text.replaceRange(allocator, start_loc.?, text1.len, replacement);
             } else {
                 // Imperfect match.  Run a diff to get a framework of equivalent indices.
-                var diffs = try diff_funcs.mainStringStringBool(allocator, diff_timeout, text1, text2, false);
+                var diffs = try diff_funcs.mainStringStringBool(io, allocator, diff_timeout, text1, text2, false);
                 defer allocator.free(diffs);
                 defer for (diffs) |diff| diff.deinit(allocator);
 
@@ -750,7 +751,7 @@ pub fn toText(allocator: Allocator, patches: PatchList) !StrType {
 
 ///Parse a textual representation of patches and return a List of Patch objects.
 pub fn fromText(allocator: Allocator, textline: []const u8) (Error || Allocator.Error)!PatchList {
-    var patches: std.ArrayList(Patch) = .{};
+    var patches: std.ArrayList(Patch) = .empty;
     defer patches.deinit(allocator);
     errdefer for (patches.items) |patch| patch.deinit(allocator);
 

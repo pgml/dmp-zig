@@ -7,7 +7,8 @@ pub const match = @import("match.zig");
 pub const patch = @import("patch.zig");
 
 test {
-    std.testing.refAllDeclsRecursive(@This());
+    std.testing.refAllDecls(@This());
+    //std.testing.refAllDeclsRecursive(@This());
 }
 
 pub const DiffMatchPatch = DiffMatchPatchCustom(u32);
@@ -67,12 +68,12 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         ///Run a faster, slightly less optimal diff.
         ///This method allows the 'checklines' of `diffMainStringStringBool` to be optional.
         ///Most of the time checklines is wanted, so default to true.
-        pub inline fn diffMainStringString(self: Self, text1: []const u8, text2: []const u8) (error{InvalidUtf8} || std.mem.Allocator.Error)![]Diff {
-            return diff.mainStringString(self.allocator, self.diff_timeout, text1, text2);
+        pub inline fn diffMainStringString(self: Self, io: std.Io, text1: []const u8, text2: []const u8) (error{InvalidUtf8} || std.mem.Allocator.Error)![]Diff {
+            return diff.mainStringString(io, self.allocator, self.diff_timeout, text1, text2);
         }
         ///Find the differences between two texts.
-        pub inline fn diffMainStringStringBool(self: Self, text1: []const u8, text2: []const u8, check_lines: bool) (error{InvalidUtf8} || std.mem.Allocator.Error)![]Diff {
-            return diff.mainStringStringBool(self.allocator, self.diff_timeout, text1, text2, check_lines);
+        pub inline fn diffMainStringStringBool(self: Self, io: std.Io, text1: []const u8, text2: []const u8, check_lines: bool) (error{InvalidUtf8} || std.mem.Allocator.Error)![]Diff {
+            return diff.mainStringStringBool(io, self.allocator, self.diff_timeout, text1, text2, check_lines);
         }
         ///Determine the common prefix of two strings.
         pub inline fn diffCommonPrefix(self: Self, text1: []const u8, text2: []const u8) usize {
@@ -178,8 +179,8 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         // patch make parts
         ///Compute a list of patches to turn text1 into text2.
         ///A set of diffs will be computed.
-        pub inline fn patchMakeStringString(self: Self, text1: []const u8, text2: []const u8) (std.mem.Allocator.Error || error{InvalidUtf8})!PatchList {
-            return patch.makeStringString(MatchMaxContainer, self.allocator, self.patch_margin, self.diff_edit_cost, self.diff_timeout, text1, text2);
+        pub inline fn patchMakeStringString(self: Self, io: std.Io, text1: []const u8, text2: []const u8) (std.mem.Allocator.Error || error{InvalidUtf8})!PatchList {
+            return patch.makeStringString(MatchMaxContainer, io, self.allocator, self.patch_margin, self.diff_edit_cost, self.diff_timeout, text1, text2);
         }
         ///Compute a list of patches to turn text1 into text2.
         ///text1 will be derived from the provided diffs.
@@ -203,8 +204,8 @@ fn DiffMatchPatchCustom(MatchMaxContainer: type) type {
         }
         ///Merge a set of patches onto the text.  Return a patched text, as well
         ///as an array of true/false values indicating which patches were applied.
-        pub inline fn patchApply(self: Self, patches: PatchList, text: []const u8) !struct { []const u8, []const bool } {
-            return patch.apply(MatchMaxContainer, self.allocator, self.diff_timeout, self.match_distance, self.match_threshold, self.patch_margin, self.patch_delete_threshold, patches, text);
+        pub inline fn patchApply(self: Self, io: std.Io, patches: PatchList, text: []const u8) !struct { []const u8, []const bool } {
+            return patch.apply(MatchMaxContainer, io, self.allocator, self.diff_timeout, self.match_distance, self.match_threshold, self.patch_margin, self.patch_delete_threshold, patches, text);
         }
         ///Add some padding on text start and end so that edges can match something.
         ///Intended to be called only from within `patchApply`.

@@ -16,9 +16,9 @@ fn testString(text: []const u8) []u8 {
 }
 
 fn diffRebuildTexts(allocator: std.mem.Allocator, diffs: []const Diff) !struct { []const u8, []const u8 } {
-    var text1: std.ArrayList(u8) = .{};
+    var text1: std.ArrayList(u8) = .empty;
     defer text1.deinit(allocator);
-    var text2: std.ArrayList(u8) = .{};
+    var text2: std.ArrayList(u8) = .empty;
     defer text2.deinit(allocator);
 
     for (diffs) |diff| {
@@ -174,7 +174,7 @@ test "bisect split" {
     try testing.expect(std.unicode.utf8ValidateSlice(text1));
     try testing.expect(std.unicode.utf8ValidateSlice(text2));
 
-    const diffs = try DiffPrivate.bisectSplit(testing.allocator, dmp.diff_timeout, text1, text2, 7, 6, std.time.ns_per_hour);
+    const diffs = try DiffPrivate.bisectSplit(testing.io, testing.allocator, dmp.diff_timeout, text1, text2, 7, 6, std.time.ns_per_hour);
     defer testing.allocator.free(diffs);
     defer for (diffs) |diff| diff.deinit(testing.allocator);
 
@@ -1330,7 +1330,7 @@ test "bisect" {
     } } }) |test_case| {
         defer for (test_case.expected) |diff| diff.deinit(testing.allocator);
 
-        const actual = try DiffPrivate.bisect(testing.allocator, dmp.diff_timeout, text1, text2, test_case.deadline);
+        const actual = try DiffPrivate.bisect(testing.io, testing.allocator, dmp.diff_timeout, text1, text2, test_case.deadline);
         defer testing.allocator.free(actual);
         defer for (actual) |diff| diff.deinit(testing.allocator);
 
@@ -1348,7 +1348,7 @@ test "bisect" {
         };
         defer for (diffs) |diff| diff.deinit(testing.allocator);
 
-        const actual = try DiffPrivate.bisect(testing.allocator, dmp.diff_timeout, "\xe0\xe5", "\xe0\xe5", std.time.ns_per_min);
+        const actual = try DiffPrivate.bisect(testing.io, testing.allocator, dmp.diff_timeout, "\xe0\xe5", "\xe0\xe5", std.time.ns_per_min);
         defer testing.allocator.free(actual);
         defer for (actual) |diff| diff.deinit(testing.allocator);
 
@@ -1427,7 +1427,7 @@ test "diff main" {
 
         // Perform a trivial diff.
         for (test_cases, 0..) |test_case, i| {
-            const actual = try dmp.diffMainStringStringBool(test_case.text1, test_case.text2, false);
+            const actual = try dmp.diffMainStringStringBool(testing.io, test_case.text1, test_case.text2, false);
             defer testing.allocator.free(actual);
             defer for (actual) |diff| diff.deinit(testing.allocator);
 
@@ -1536,7 +1536,7 @@ test "diff main" {
         defer for (test_cases) |test_case| for (test_case.expected) |diff| diff.deinit(testing.allocator);
 
         for (test_cases, 0..) |test_case, i| {
-            const actual = try dmp.diffMainStringStringBool(test_case.text1, test_case.text2, false);
+            const actual = try dmp.diffMainStringStringBool(testing.io, test_case.text1, test_case.text2, false);
             defer testing.allocator.free(actual);
             defer for (actual) |diff| diff.deinit(testing.allocator);
 
@@ -1565,7 +1565,7 @@ test "diff main" {
         };
         defer for (diffs) |diff| diff.deinit(testing.allocator);
 
-        const actual = try dmp.diffMainStringStringBool("\xe0\xe5", "", false);
+        const actual = try dmp.diffMainStringStringBool(testing.io, "\xe0\xe5", "", false);
         defer testing.allocator.free(actual);
         defer for (actual) |diff| diff.deinit(testing.allocator);
 
@@ -1586,11 +1586,11 @@ test "diff main with timeout" {
     const a = "`Twas brillig, and the slithy toves\nDid gyre and gimble in the wabe:\nAll mimsy were the borogoves,\nAnd the mome raths outgrabe.\n" ** increase;
     const b = "I am the very model of a modern major general,\nI've information vegetable, animal, and mineral,\nI know the kings of England, and I quote the fights historical,\nFrom Marathon to Waterloo, in order categorical.\n" ** increase;
 
-    var timer = try std.time.Timer.start();
-    const diffs = try dmp.diffMainStringStringBool(a, b, true);
+    const start = std.Io.Clock.awake.now(testing.io);
+    const diffs = try dmp.diffMainStringStringBool(testing.io, a, b, true);
     for (diffs) |diff| diff.deinit(testing.allocator);
     testing.allocator.free(diffs);
-    const delta: f64 = @floatFromInt(timer.read());
+    const delta: f64 = @floatFromInt(start.untilNow(testing.io, .awake).toNanoseconds());
 
     try testing.expect(delta >= dmp.diff_timeout * std.time.ns_per_s);
 
@@ -1626,10 +1626,20 @@ test "diff main linemode" {
     };
 
     for (test_cases, 0..) |test_case, i| {
-        const diffs_linemode = try dmp.diffMainStringStringBool(test_case.text1, test_case.text2, true);
+        const diffs_linemode = try dmp.diffMainStringStringBool(
+            testing.io,
+            test_case.text1,
+            test_case.text2,
+            true,
+        );
         defer testing.allocator.free(diffs_linemode);
         defer for (diffs_linemode) |diff| diff.deinit(testing.allocator);
-        const diffs_textmode = try dmp.diffMainStringStringBool(test_case.text1, test_case.text2, false);
+        const diffs_textmode = try dmp.diffMainStringStringBool(
+            testing.io,
+            test_case.text1,
+            test_case.text2,
+            false,
+        );
         defer testing.allocator.free(diffs_textmode);
         defer for (diffs_textmode) |diff| diff.deinit(testing.allocator);
 
@@ -1683,7 +1693,7 @@ test "partial line index" {
     var linearray = try DiffPrivate.linesToChars(testing.allocator, &text1, &text2);
     defer linearray.deinit();
 
-    const diffs = try dmp.diffMainStringStringBool(text1, text2, false);
+    const diffs = try dmp.diffMainStringStringBool(testing.io, text1, text2, false);
     defer testing.allocator.free(diffs);
     defer for (diffs) |diff| diff.deinit(testing.allocator);
 

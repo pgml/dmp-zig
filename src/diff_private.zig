@@ -7,24 +7,22 @@ const Diff = @import("diff.zig").Diff;
 const Allocator = std.mem.Allocator;
 
 const isWasm = @import("builtin").target.os.tag == .freestanding and @import("builtin").target.cpu.arch.isWasm();
-const Timer = if (!isWasm)
-    std.time.Timer
-else
-    struct {
-        start_time: u64,
 
-        extern "dmp" fn readTimeNs() callconv(.c) u64;
-        pub fn start() !Timer {
-            return .{
-                .start_time = readTimeNs(),
-            };
-        }
-        pub fn read(self: *Timer) u64 {
-            const time: u64 = readTimeNs();
-            std.debug.assert(time > self.start_time);
-            return time - self.start_time;
-        }
-    };
+const Timer = struct {
+    io: std.Io,
+    start_time: std.Io.Timestamp,
+
+    pub fn start(io: std.Io) !Timer {
+        return .{
+            .io = io,
+            .start_time = std.Io.Clock.awake.now(io),
+        };
+    }
+    pub fn read(self: *Timer) u64 {
+        const time = self.start_time.untilNow(self.io, .awake);
+        return @intCast(time.toNanoseconds());
+    }
+};
 
 pub const LineArray = struct {
     const S = @This();
@@ -61,8 +59,8 @@ pub const LineArray = struct {
 
 ///Find the differences between two texts.  Simplifies the problem by
 ///stripping any common prefix or suffix off the texts before diffing.
-pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64) error{ OutOfMemory, InvalidUtf8 }![]Diff {
-    var timer = Timer.start() catch @panic("Timer not available");
+pub fn mainStringStringBoolTimeout(io: std.Io, allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64) error{ OutOfMemory, InvalidUtf8 }![]Diff {
+    var timer = Timer.start(io) catch @panic("Timer not available");
 
     const t1_valid = std.unicode.utf8ValidateSlice(text1);
     const t2_valid = std.unicode.utf8ValidateSlice(text2);
@@ -76,7 +74,7 @@ pub fn mainStringStringBoolTimeout(allocator: Allocator, diff_timeout: f32, text
     return mainStringStringBoolTimeoutTimer(allocator, diff_timeout, t1, t2, check_lines, ns_time_limit, &timer);
 }
 fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, check_lines: bool, ns_time_limit: u64, timer: *Timer) Allocator.Error![]Diff {
-    var diffs: std.ArrayList(Diff) = .{};
+    var diffs: std.ArrayList(Diff) = .empty;
     defer diffs.deinit(allocator);
     errdefer for (diffs.items) |diff| diff.deinit(allocator);
 
@@ -139,8 +137,8 @@ fn mainStringStringBoolTimeoutTimer(allocator: Allocator, diff_timeout: f32, tex
 
 ///Find the differences between two texts.  Assumes that the texts do not
 ///have any common prefix or suffix.
-pub fn compute(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, checklines: bool, ns_time_limit: u64) ![]Diff {
-    var timer = Timer.start() catch @panic("Timer not available");
+pub fn compute(io: std.Io, allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, checklines: bool, ns_time_limit: u64) ![]Diff {
+    var timer = Timer.start(io) catch @panic("Timer not available");
     return computeTimer(allocator, diff_timeout, text1, text2, checklines, ns_time_limit, &timer);
 }
 fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, checklines: bool, ns_time_limit: u64, timer: *Timer) (error{InvalidUtf8} || Allocator.Error)![]Diff {
@@ -152,7 +150,7 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
     std.debug.assert(std.unicode.utf8ValidateSlice(text1));
     std.debug.assert(std.unicode.utf8ValidateSlice(text2));
 
-    var diffs: std.ArrayList(Diff) = .{};
+    var diffs: std.ArrayList(Diff) = .empty;
     defer diffs.deinit(allocator);
     errdefer for (diffs.items) |diff| diff.deinit(allocator);
 
@@ -216,8 +214,8 @@ fn computeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text
 ///Do a quick line-level diff on both strings, then rediff the parts for
 ///greater accuracy.
 ///This speedup can produce non-minimal diffs.
-pub fn lineMode(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64) ![]Diff {
-    var timer = Timer.start() catch @panic("Timer not available");
+pub fn lineMode(io: std.Io, allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64) ![]Diff {
+    var timer = Timer.start(io) catch @panic("Timer not available");
     return lineModeTimer(allocator, diff_timeout, text1, text2, ns_time_limit, &timer);
 }
 fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64, timer: *Timer) ![]Diff {
@@ -257,9 +255,9 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
     var count_delete: usize = 0;
     var count_insert: usize = 0;
 
-    var text_insert: std.ArrayList(u8) = .{};
+    var text_insert: std.ArrayList(u8) = .empty;
     defer text_insert.deinit(allocator);
-    var text_delete: std.ArrayList(u8) = .{};
+    var text_delete: std.ArrayList(u8) = .empty;
     defer text_delete.deinit(allocator);
 
     while (pointer < diff_list.items.len) {
@@ -310,8 +308,8 @@ fn lineModeTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, tex
 ///Find the 'middle snake' of a diff, split the problem in two
 ///and return the recursively constructed diff.
 ///See Myers 1986 paper: An O(ND) Difference Algorithm and Its Variations.
-pub fn bisect(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64) ![]Diff {
-    var timer = Timer.start() catch @panic("Timer not available");
+pub fn bisect(io: std.Io, allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64) ![]Diff {
+    var timer = Timer.start(io) catch @panic("Timer not available");
     return bisectTimer(allocator, diff_timeout, text1, text2, ns_time_limit, &timer);
 }
 fn bisectTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, ns_time_limit: u64, timer: *Timer) (error{InvalidUtf8} || Allocator.Error)![]Diff {
@@ -454,8 +452,8 @@ fn bisectTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2
 
 ///Given the location of the 'middle snake', split the diff in two parts
 ///and recurse.
-pub fn bisectSplit(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, x: usize, y: usize, ns_time_limit: u64) ![]Diff {
-    var timer = Timer.start() catch @panic("Timer not available");
+pub fn bisectSplit(io: std.Io, allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, x: usize, y: usize, ns_time_limit: u64) ![]Diff {
+    var timer = Timer.start(io) catch @panic("Timer not available");
     return bisectSplitTimer(allocator, diff_timeout, text1, text2, x, y, ns_time_limit, &timer);
 }
 fn bisectSplitTimer(allocator: Allocator, diff_timeout: f32, text1: []const u8, text2: []const u8, x: usize, y: usize, ns_time_limit: u64, timer: *Timer) (error{ InvalidUtf8, OutOfBounds } || Allocator.Error)![]Diff {
@@ -545,7 +543,7 @@ pub fn charsToLinesLineArray(allocator: Allocator, diffs: []Diff, line_array: Li
 
 ///Rehydrate the text in a diff from a string of line hashes to real lines of text.
 pub fn charsToLines(allocator: Allocator, diffs: []Diff, line_array: [][]const u8) Allocator.Error!void {
-    var text: std.ArrayList(u21) = .{};
+    var text: std.ArrayList(u21) = .empty;
     defer text.deinit(allocator);
     for (diffs) |*diff| {
         text.clearRetainingCapacity();
