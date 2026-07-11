@@ -1,7 +1,7 @@
 .{
     .name = .diffmatchpatch,
     .fingerprint = 0x8f4903f957fb546d,
-    .version = "1.2.2",
+    .version = "1.2.3",
     .minimum_zig_version = "0.16.0",
     .dependencies = .{},
     .paths = .{
@@ -9,6 +9,5 @@
         "build.zig.zon",
         "src",
         "LICENSE",
-        "README.md",
     },
 }

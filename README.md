@@ -28,14 +28,14 @@ dmp-zig can be used as a zig library in other zig projects
 First add it to your `build.zig.zon` file
 you can use this command to add the URL and hash automatically
 ```sh
-zig fetch --save https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.2.tar.gz
+zig fetch --save https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.3.tar.gz
 ```
 
 or you can add
 ```zig
 .diffmatchpatch = .{
-    .url = "https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.1.tar.gz",
-    .hash = "diffmatchpatch-1.2.1-bVT7V0PTAwAtLhbAb_K3wPbYskG6t-MJHiBjRnpNIbGV",
+    .url = "https://github.com/zivoy/dmp-zig/archive/refs/tags/v1.2.3.tar.gz",
+    .hash = "diffmatchpatch-1.2.3-bVT7V0XdAwBSnuHn39Ldp6Fpjvpj2bNQMfG5i2ei7tMd",
 },
 ```
 under the dependencies section yourself
