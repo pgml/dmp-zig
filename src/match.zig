@@ -39,8 +39,8 @@ pub fn bitap(comptime MatchMaxContainer: type, allocator: Allocator, match_dista
         return MatchError.PatternTooLong;
     }
     const ShiftContainer: type = comptime blk: {
-        const t = @ceil(@log2(@as(f32, @floatFromInt(match_max_bits))));
-        break :blk @Int(.unsigned, t);
+        const bits = @ceil(@log2(@as(f32, @floatFromInt(match_max_bits))));
+        break :blk @Int(.unsigned, bits);
     };
 
     // init alphabet
